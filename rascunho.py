@@ -16,22 +16,15 @@ def validar_dados(cpf, nome, telefone):
 
     regra_nome = r"^[A-Za-zÀ-ÿ ]{3,}$"
 
-    regra_tel = r"^\d{10,11}$"
-   
-    cpfn = re.sub(r'\D', '', cpf)
-    nomen = nome.strip()
-    teln = re.sub(r'\D', '', telefone)
-   
-    if not cpfn or not nomen or not teln:
-        return False, "Há campos vazios, Por favor faça o preenchimento de todos!"
+    regra_tel = r'(?:\+?55\s?)?(?:$$?([0-9]{2})$$?\s?)?(?:9\s?)?([0-9]{4,5})-?([0-9]{4})'   
 
-    if not re.match(regra_cpf, cpfn):
+    if not re.match(regra_cpf, cpf):
         return False, "CPF invalido! Digite apenas 11 numeros"
     
-    if not re.match(regra_nome, nomen):
+    if not re.match(regra_nome, nome):
         return False, "Nome invalido! Por favor insira apenas letras e acentos"
     
-    if not re.match(regra_tel, teln):
+    if not re.match(regra_tel, telefone):
         return False, "Número telefone invalido! Digite um número telefone valido"
     
     return True, "Dados Validos"
@@ -41,14 +34,6 @@ def remover_membro(indice):
 
     st.rerun()
 
-def reset_form():
-    for i in range(len(st.session_state.membro)):
-        keys_para_deletar = [f'nome_{i}', f'cpf_{i}', f'renda_{i}', f'idade_{i}', f'telefone_{i}']
-        for k in keys_para_deletar:
-            if k in st.session_state:
-                del st.session_state[k]
-    
-    st.session_state.membro = [{"nome": "", "cpf": "", 'renda': 0.0, 'idade': 0, "telefone": ""}]
 
 def adicionar_membros():
     if len(st.session_state.membro) > 0:
@@ -122,14 +107,8 @@ if finalizar:
 
             st.metric("Renda per capita da familia", f"R$ {RP:.2f}")
 
-            cpf_responsavel = st.session_state.membro[0]['cpf']
-            st.session_state.banco_familias[cpf_responsavel] = [m.copy() for m in st.session_state.membro]
-            
-            st.success(f"Familia do responsavel correspondente ao CPF: {cpf_responsavel} cadastrada com sucesso!")
-
-            st.button("Cadastrar nova família", on_click=reset_form)
-
-                
     else:
         st.warning("Adicione pelo menos uma pessoa")
         
+
+def salvar_familia():
