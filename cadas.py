@@ -6,7 +6,7 @@ st.title ("Cadastro de Familia - São Luís")
 if 'membro' not in st.session_state:
     st.session_state.membro = []
 
-    st.session_state.membro.append({"nome": " ", "cpf": " ", 'renda': 0.0, 'idade': 0, "telefone": " "})
+    st.session_state.membro.append({"nome": " ", "cpf": " ", 'bairro': "", 'renda': 0.0, 'idade': 0, "telefone": " "})
 
 if 'banco_familias' not in st.session_state:
     st.session_state.banco_familias = {}
@@ -39,16 +39,15 @@ def validar_dados(cpf, nome, telefone):
 def remover_membro(indice):
     st.session_state.membro.pop(indice)
 
-    st.rerun()
 
 def reset_form():
     for i in range(len(st.session_state.membro)):
-        keys_para_deletar = [f'nome_{i}', f'cpf_{i}', f'renda_{i}', f'idade_{i}', f'telefone_{i}']
+        keys_para_deletar = [f'nome_{i}', f'cpf_{i}', f'bairro', f'renda_{i}', f'idade_{i}', f'telefone_{i}']
         for k in keys_para_deletar:
             if k in st.session_state:
                 del st.session_state[k]
     
-    st.session_state.membro = [{"nome": "", "cpf": "", 'renda': 0.0, 'idade': 0, "telefone": ""}]
+    st.session_state.membro = [{"nome": "", "cpf": "", "bairro": '', 'renda': 0.0, 'idade': 0, "telefone": ""}]
 
 def adicionar_membros():
     if len(st.session_state.membro) > 0:
@@ -59,7 +58,7 @@ def adicionar_membros():
             st.toast("Preencha o membro atual antes de adicionar um outro!", icon = "🚫")
             return
 
-    st.session_state.membro.append({"nome": " ", "cpf": " ", 'renda': 0.0, 'idade': 0, "telefone": " "})
+    st.session_state.membro.append({"nome": " ", "cpf": " ", "bairro": '', 'renda': 0.0, 'idade': 0, "telefone": " "})
 
 col_esq, espaco, col_dir = st.columns([4.5, 1, 4.5])
 
@@ -81,6 +80,9 @@ for i, membro in enumerate(st.session_state.membro):
                     st.button("❌", key=f"btn_excluir_{i}", on_click=remover_membro, args=(i,))
 
             st.session_state.membro[i]['nome'] = st.text_input(f"Nome", placeholder = "Nome Completo", key = f'nome_{i}')
+
+            if i == 0:
+                st.session_state.membro[i]['bairro'] = st.text_input(f"Bairro", placeholder= "Bairro da familia", key= f'bairro_{i}')
         
             st.session_state.membro[i]['cpf'] = st.text_input(f"CPF", placeholder= "00000000000", key = f'cpf_{i}')
             
