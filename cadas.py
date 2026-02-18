@@ -11,7 +11,7 @@ if 'membro' not in st.session_state:
 if 'banco_familias' not in st.session_state:
     st.session_state.banco_familias = {}
 
-def validar_dados(cpf, nome, telefone):
+def validar_dados(cpf, nome, telefone, bairro):
     regra_cpf = r"^\d{11}$"
 
     regra_nome = r"^[A-Za-zÀ-ÿ ]{3,}$"
@@ -22,7 +22,7 @@ def validar_dados(cpf, nome, telefone):
     nomen = nome.strip()
     teln = re.sub(r'\D', '', telefone)
    
-    if not cpfn or not nomen or not teln:
+    if not cpfn or not nomen or not teln or not bairro:
         return False, "Há campos vazios, Por favor faça o preenchimento de todos!"
 
     if not re.match(regra_cpf, cpfn):
@@ -58,7 +58,7 @@ def adicionar_membros():
             st.toast("Preencha o membro atual antes de adicionar um outro!", icon = "🚫")
             return
 
-    st.session_state.membro.append({"nome": " ", "cpf": " ", "bairro": '', 'renda': 0.0, 'idade': 0, "telefone": " "})
+    st.session_state.membro.append({"nome": " ", "cpf": " ", "bairro": '', "tipo_moradia": '', 'renda': 0.0, 'idade': 0, "telefone": " "})
 
 col_esq, espaco, col_dir = st.columns([4.5, 1, 4.5])
 
@@ -83,7 +83,9 @@ for i, membro in enumerate(st.session_state.membro):
 
             if i == 0:
                 st.session_state.membro[i]['bairro'] = st.text_input(f"Bairro", placeholder= "Bairro da familia", key= f'bairro_{i}')
-        
+
+                st.session_state.membro[i]['tipo_moradia'] = st.text_input("Tipo de moradia", placeholder= "Tipo de moradia", key= f'tipo_moradia_{i}')
+
             st.session_state.membro[i]['cpf'] = st.text_input(f"CPF", placeholder= "00000000000", key = f'cpf_{i}')
             
             c1, c2 = st.columns(2)
@@ -110,9 +112,9 @@ if finalizar:
         valido = True
 
         for m in st.session_state.membro:
-            valido, msg = validar_dados(m['cpf'], m['nome'], m['telefone'])
+            valido, msg = validar_dados(m['cpf'], m['nome'], m['telefone'], m['bairro'])
             if not valido:
-                st.error(f"Erro no {m['cpf'] if m['nome'] else 'Membro'}: {msg}")
+                st.error(f"Erro no {m['nome'] if m['cpf'] else 'Membro'}: {msg}")
                 valido = False
                 break
 
