@@ -1,7 +1,25 @@
 import streamlit as st
 import re
+import sqlite3
+
+st.set_page_config(page_title="Monitoramento SLZ", layout="wide")
 
 st.title ("Cadastro de Familia - São Luís")
+st.write("")
+
+def conexao():
+    return sqlite3.connect('Banco_dados.db')
+
+def criar_table():
+        conn = conexao()
+        pen = conn.cursor('''
+
+        CREATE TABLE IF NOT EXISTS Familias
+
+
+        ''')
+
+        pen.execute()
 
 if 'membro' not in st.session_state:
     st.session_state.membro = []
