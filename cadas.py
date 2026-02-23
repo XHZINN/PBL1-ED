@@ -1,35 +1,80 @@
 import streamlit as st
 import re
 import sqlite3
+import uuid
 
 st.set_page_config(page_title="Monitoramento SLZ", layout="wide")
 
 st.title ("Cadastro de Familia - São Luís")
 st.write("")
 
-def conexao():
+def conexao_bd():
     return sqlite3.connect('Banco_dados.db')
 
 def criar_table():
-        conn = conexao()
-        pen = conn.cursor('''
+        conn = conexao_bd()
+        trabaiador = conn.cursor()
 
-        CREATE TABLE IF NOT EXISTS Familias
+        trabaiador.execute('''
 
+        CREATE TABLE IF NOT EXISTS Familias(
+                           
+            uuid_familia TEXT PRIMARY KEY,
+            bairro TEXT,
+            tipo_moradia TEXT,
+            custo_moradia REAL,
+            renda_familiar REAL,
+            pessoas_familia REAL,
+            cpf_responsavel TEXT UNIQUE
+               )
+        ''')
+        trabaiador.execute('''
+        CREATE TABLE IF NOT EXISTS Pessoas(
 
+            uuid_pessoa TEXT PRIMARY KEY,
+            uuid_familia TEXT,
+            nome TEXT,
+            cpf TEXT UNIQUE,
+            renda REAL,
+            data_nasc TEXT, 
+            telefone TEXT
+                )
         ''')
 
-        pen.execute()
+        conn.commit()
+        conn.close()
 
-if 'membro' not in st.session_state:
-    st.session_state.membro = []
+criar_table()
 
-    st.session_state.membro.append({"nome": " ", "cpf": " ", 'bairro': "", 'renda': 0.0, 'idade': 0, "telefone": " "})
+def salvar_bd(membros, bairro_f, moradia_f, custo_f, renda_f, quantidade_f):
 
-if 'banco_familias' not in st.session_state:
-    st.session_state.banco_familias = {}
+    uuid_familia = str(uuid.uuid4())
+    conn = conexao_bd()
+    pen = conn.cursor()
 
-def validar_dados(cpf, nome, telefone, bairro):
+    try:
+
+        pen.execute('''
+
+            INSERT INTO Familias(uuid_familia, bairro, tipo_moradia, custo_moradia, renda_familiar,pessoas_familia, cpf_responsavel)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (uuid_familia, bairro_f, moradia_f, custo_f, renda_f, quantidade_f, st.session_state.membro[0]['cpf']))
+        for m in membros:
+            uuid_pessoa = str(uuid.uuid4())
+            pen.execute('''
+
+            INSERT INTO Pessoas(uuid_pessoa, uuid_familia, nome, cpf, renda, data_nasc, telefone)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (uuid_pessoa, uuid_familia, m['nome'], m['cpf'], m['renda'], m['data_nasc'], m['telefone']))
+        conn.commit()
+        st.success("Família e Membros salvos com sucesso")
+
+    except sqlite3.IntegrityError:
+            st.error("Erro: Um dos CPFs já está cadastrado no sistema!")
+    finally:
+        conn.close()
+    
+def validar_dados(cpf, nome, telefone):
     regra_cpf = r"^\d{11}$"
 
     regra_nome = r"^[A-Za-zÀ-ÿ ]{3,}$"
@@ -40,7 +85,7 @@ def validar_dados(cpf, nome, telefone, bairro):
     nomen = nome.strip()
     teln = re.sub(r'\D', '', telefone)
    
-    if not cpfn or not nomen or not teln or not bairro:
+    if not cpfn or not nomen or not teln:
         return False, "Há campos vazios, Por favor faça o preenchimento de todos!"
 
     if not re.match(regra_cpf, cpfn):
@@ -57,15 +102,14 @@ def validar_dados(cpf, nome, telefone, bairro):
 def remover_membro(indice):
     st.session_state.membro.pop(indice)
 
-
 def reset_form():
     for i in range(len(st.session_state.membro)):
-        keys_para_deletar = [f'nome_{i}', f'cpf_{i}', f'bairro', f'renda_{i}', f'idade_{i}', f'telefone_{i}']
+        keys_para_deletar = [f'nome_{i}', f'cpf_{i}', f'bairro_{i}', f'tipo_moradia_{i}', f'custo_moradia_{i}', f'renda_{i}', f'data_nasc_{i}', f'telefone_{i}']
         for k in keys_para_deletar:
             if k in st.session_state:
                 del st.session_state[k]
     
-    st.session_state.membro = [{"nome": "", "cpf": "", "bairro": '', 'renda': 0.0, 'idade': 0, "telefone": ""}]
+    st.session_state.membro = [{"nome": "", "cpf": "", "bairro": '', 'tipo_moradia': " ", 'custo_moradia': 0, 'renda': 0.0, 'data_nasc': 0, "telefone": ""}]
 
 def adicionar_membros():
     if len(st.session_state.membro) > 0:
@@ -76,7 +120,15 @@ def adicionar_membros():
             st.toast("Preencha o membro atual antes de adicionar um outro!", icon = "🚫")
             return
 
-    st.session_state.membro.append({"nome": " ", "cpf": " ", "bairro": '', "tipo_moradia": '', 'renda': 0.0, 'idade': 0, "telefone": " "})
+    st.session_state.membro.append({"nome": " ", "cpf": " ", "bairro": '', 'tipo_moradia': " ", 'custo_moradia': 0, 'renda': 0.0, 'data_nasc': 0, "telefone": " "})
+
+if 'membro' not in st.session_state:
+    st.session_state.membro = []
+
+    st.session_state.membro.append({"nome": " ", "cpf": " ", 'bairro': "", 'tipo_moradia': " ", 'custo_moradia': 0, 'renda': 0.0, 'data_nasc': 0, "telefone": " "})
+
+if 'banco_familias' not in st.session_state:
+    st.session_state.banco_familias = {}
 
 col_esq, espaco, col_dir = st.columns([4.5, 1, 4.5])
 
@@ -100,17 +152,35 @@ for i, membro in enumerate(st.session_state.membro):
             st.session_state.membro[i]['nome'] = st.text_input(f"Nome", placeholder = "Nome Completo", key = f'nome_{i}')
 
             if i == 0:
-                st.session_state.membro[i]['bairro'] = st.text_input(f"Bairro", placeholder= "Bairro da familia", key= f'bairro_{i}')
 
-                st.session_state.membro[i]['tipo_moradia'] = st.text_input("Tipo de moradia", placeholder= "Tipo de moradia", key= f'tipo_moradia_{i}')
+                c1, c2, c3 = st.columns(3)
+
+                with c1:
+                    st.session_state.membro[i]['bairro'] = st.text_input(f"Bairro", placeholder= "Bairro da familia", key= f'bairro_{i}')
+
+                with c2:
+                    opcoes = ["Casa Propria", "Cedida", "Aluguel", "Ocupação"]
+                    moradia = st.selectbox("Tipo de moradia", options=opcoes, key= f'tipo_moradia_{i}')
+                    st.session_state.membro[i]['tipo_moradia'] = moradia
+
+                with c3:
+                    if moradia in ["Aluguel", "Cedida"]:
+
+                        label_custo = "Valor do aluguel" if moradia == "Aluguel" else "Custo de moradia (se houver)"
+                        st.session_state.membro[i]['custo_moradia'] = st.number_input(label_custo, step=50.0, min_value=0.0, key=f'custo_moradia_{i}')
+                    
+                    else:
+
+                        st.session_state.membro[i]['custo_moradia'] = 0.0
 
             st.session_state.membro[i]['cpf'] = st.text_input(f"CPF", placeholder= "00000000000", key = f'cpf_{i}')
+
             
-            c1, c2 = st.columns(2)
-            with c1:
+            c4, c5 = st.columns(2)
+            with c4:
              st.session_state.membro[i]['renda'] = st.number_input(f"Renda Individual", min_value= 0.0, key = f'renda_{i}')
-            with c2:
-             st.session_state.membro[i]['idade'] = st.number_input(f"Idade", min_value= 0, step = 1, key = f'idade_{i}')
+            with c5:
+             st.session_state.membro[i]['data_nasc'] = st.date_input(f"Data de Nascimento",  key = f'data_nasc_{i}')
         
             st.session_state.membro[i]['telefone'] = st.text_input(f"Telefone", placeholder="98999999999", key = f'telefone_{i}')
 
@@ -129,8 +199,19 @@ if finalizar:
     if len(st.session_state.membro) > 0:
         valido = True
 
+        bairro_f = st.session_state.membro[0]['bairro'].strip()
+        moradia_f = st.session_state.membro[0]["tipo_moradia"]
+        custo_f = st.session_state.membro[0]["custo_moradia"]
+        renda_f = sum([m['renda'] for m in st.session_state.membro])
+        quantidade_f = len(st.session_state.membro)
+
+
+        if not bairro_f:
+            st.error("O campo bairro está vazio, Por favor preencher")
+
+        
         for m in st.session_state.membro:
-            valido, msg = validar_dados(m['cpf'], m['nome'], m['telefone'], m['bairro'])
+            valido, msg = validar_dados(m['cpf'], m['nome'], m['telefone'])
             if not valido:
                 st.error(f"Erro no {m['nome'] if m['cpf'] else 'Membro'}: {msg}")
                 valido = False
@@ -138,20 +219,19 @@ if finalizar:
 
         if valido:
 
-            ttl_renda = sum(m['renda'] for m in st.session_state.membro)
-            qtd_pessoa = len(st.session_state.membro)
-            RP = ttl_renda / qtd_pessoa
-
-            st.metric("Renda per capita da familia", f"R$ {RP:.2f}")
 
             cpf_responsavel = st.session_state.membro[0]['cpf']
-            st.session_state.banco_familias[cpf_responsavel] = [m.copy() for m in st.session_state.membro]
+            dados_familia = [m.copy() for m in st.session_state.membro]
+            st.session_state.banco_familias[cpf_responsavel] = dados_familia
+
+            try:
+                salvar_bd(dados_familia, bairro_f, moradia_f, custo_f, renda_f, quantidade_f)
             
-            st.success(f"Familia do responsavel correspondente ao CPF: {cpf_responsavel} cadastrada com sucesso!")
+            except Exception as e:
+                st.error(f"Erro ao salvar no banco {e}")
 
             st.button("Cadastrar nova família", on_click=reset_form)
 
                 
     else:
         st.warning("Adicione pelo menos uma pessoa")
-        
