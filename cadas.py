@@ -2,6 +2,7 @@ import streamlit as st
 import re
 import sqlite3
 import uuid
+import os
 
 st.set_page_config(page_title="Monitoramento SLZ", layout="wide")
 
@@ -74,6 +75,17 @@ def salvar_bd(membros, bairro_f, moradia_f, custo_f, renda_f, quantidade_f):
     finally:
         conn.close()
     
+def bairros_slz():
+    path_B = 'bairros_slz.txt'
+
+    if os.path.exists(path_B):
+        with open (path_B, 'r', encoding= 'utf-8') as b:
+
+            bairros = [linha.strip() for linha in b.readlines() if linha.strip()]
+            return sorted(bairros)
+    else:
+        return ['Centro', 'Cohab', 'Turu', 'Outros']
+
 def validar_dados(cpf, nome, telefone):
     regra_cpf = r"^\d{11}$"
 
@@ -103,13 +115,14 @@ def remover_membro(indice):
     st.session_state.membro.pop(indice)
 
 def reset_form():
-    for i in range(len(st.session_state.membro)):
-        keys_para_deletar = [f'nome_{i}', f'cpf_{i}', f'bairro_{i}', f'tipo_moradia_{i}', f'custo_moradia_{i}', f'renda_{i}', f'data_nasc_{i}', f'telefone_{i}']
-        for k in keys_para_deletar:
-            if k in st.session_state:
-                del st.session_state[k]
+
+    st.session_state.membro = [{"nome": "", "cpf": "", "bairro": "", "tipo_moradia": "Casa Propria", "custo_moradia": 0.0, "renda": 0.0, "data_nasc": None, "telefone": ""}]
     
-    st.session_state.membro = [{"nome": "", "cpf": "", "bairro": '', 'tipo_moradia': " ", 'custo_moradia': 0, 'renda': 0.0, 'data_nasc': 0, "telefone": ""}]
+    st.session_state.form_id += 1
+    
+    for key in list(st.session_state.keys()):
+        if any(x in key for x in ['nome_', 'cpf_', 'bairro_', 'renda_']):
+            del st.session_state[key]
 
 def adicionar_membros():
     if len(st.session_state.membro) > 0:
@@ -128,7 +141,15 @@ if 'membro' not in st.session_state:
     st.session_state.membro.append({"nome": " ", "cpf": " ", 'bairro': "", 'tipo_moradia': " ", 'custo_moradia': 0, 'renda': 0.0, 'data_nasc': 0, "telefone": " "})
 
 if 'banco_familias' not in st.session_state:
+
     st.session_state.banco_familias = {}
+
+if 'form_id' not in st.session_state:
+    st.session_state.form_id = 0
+
+bairros = bairros_slz()
+if 'Outros' not in bairros:
+    bairros.append('Outros')
 
 col_esq, espaco, col_dir = st.columns([4.5, 1, 4.5])
 
@@ -149,40 +170,41 @@ for i, membro in enumerate(st.session_state.membro):
                 if i > 0:
                     st.button("❌", key=f"btn_excluir_{i}", on_click=remover_membro, args=(i,))
 
-            st.session_state.membro[i]['nome'] = st.text_input(f"Nome", placeholder = "Nome Completo", key = f'nome_{i}')
+            st.session_state.membro[i]['nome'] = st.text_input(f"Nome", placeholder = "Nome Completo", key = f'nome_{i}_{st.session_state.form_id}')
 
             if i == 0:
 
                 c1, c2, c3 = st.columns(3)
 
                 with c1:
-                    st.session_state.membro[i]['bairro'] = st.text_input(f"Bairro", placeholder= "Bairro da familia", key= f'bairro_{i}')
+                    
+                    st.session_state.membro[i]['bairro'] = st.selectbox(f"Bairro", options=bairros, key= f'bairro_{i}_{st.session_state.form_id}')
 
                 with c2:
                     opcoes = ["Casa Propria", "Cedida", "Aluguel", "Ocupação"]
-                    moradia = st.selectbox("Tipo de moradia", options=opcoes, key= f'tipo_moradia_{i}')
+                    moradia = st.selectbox("Tipo de moradia", options=opcoes, key= f'tipo_moradia_{i}_{st.session_state.form_id}')
                     st.session_state.membro[i]['tipo_moradia'] = moradia
 
                 with c3:
                     if moradia in ["Aluguel", "Cedida"]:
 
                         label_custo = "Valor do aluguel" if moradia == "Aluguel" else "Custo de moradia (se houver)"
-                        st.session_state.membro[i]['custo_moradia'] = st.number_input(label_custo, step=50.0, min_value=0.0, key=f'custo_moradia_{i}')
+                        st.session_state.membro[i]['custo_moradia'] = st.number_input(label_custo, step=50.0, min_value=0.0, key=f'custo_moradia_{i}_{st.session_state.form_id}')
                     
                     else:
 
                         st.session_state.membro[i]['custo_moradia'] = 0.0
 
-            st.session_state.membro[i]['cpf'] = st.text_input(f"CPF", placeholder= "00000000000", key = f'cpf_{i}')
+            st.session_state.membro[i]['cpf'] = st.text_input(f"CPF", placeholder= "00000000000", key = f'cpf_{i}_{st.session_state.form_id}')
 
             
             c4, c5 = st.columns(2)
             with c4:
-             st.session_state.membro[i]['renda'] = st.number_input(f"Renda Individual", min_value= 0.0, key = f'renda_{i}')
+             st.session_state.membro[i]['renda'] = st.number_input(f"Renda Individual", min_value= 0.0, key = f'renda_{i}_{st.session_state.form_id}')
             with c5:
-             st.session_state.membro[i]['data_nasc'] = st.date_input(f"Data de Nascimento",  key = f'data_nasc_{i}')
+             st.session_state.membro[i]['data_nasc'] = st.date_input(f"Data de Nascimento",  key = f'data_nasc_{i}_{st.session_state.form_id}')
         
-            st.session_state.membro[i]['telefone'] = st.text_input(f"Telefone", placeholder="98999999999", key = f'telefone_{i}')
+            st.session_state.membro[i]['telefone'] = st.text_input(f"Telefone", placeholder="98999999999", key = f'telefone_{i}_{st.session_state.form_id}')
 
 st.write("")
 
@@ -226,11 +248,10 @@ if finalizar:
 
             try:
                 salvar_bd(dados_familia, bairro_f, moradia_f, custo_f, renda_f, quantidade_f)
-            
+                st.button("Cadastrar nova família", on_click=reset_form)
+             
             except Exception as e:
                 st.error(f"Erro ao salvar no banco {e}")
-
-            st.button("Cadastrar nova família", on_click=reset_form)
 
                 
     else:
