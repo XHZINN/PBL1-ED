@@ -8,18 +8,12 @@ st.set_page_config(page_title="Monitoramento SLZ", layout="wide")
 
 st.title ("Cadastro de Familia - São Luís")
 
-st.markdown("""
+st.markdown('''
     <style>
     [data-testid="stVerticalBlockBorder"] {
-        min-height: 780px;
-    }
-    label p {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+            min-height: 580px !important; 
+            }
+''', unsafe_allow_html=True)
 
 st.write("")
 
@@ -177,7 +171,7 @@ for i, membro in enumerate(st.session_state.membro):
             c_header, c_trash = st.columns([0.8, 0.2])
 
             with c_header:
-              label = "Responsavel" if i == 0 else f"Membro {i+1}"
+              label = "Responsavel" if i == 0 else f"{i+1}° Membro"
               st.write(label)
 
             with c_trash:
@@ -216,7 +210,7 @@ for i, membro in enumerate(st.session_state.membro):
                     else:
 
                         st.session_state.membro[i]['custo_moradia'] = 0.0
-
+            
             st.session_state.membro[i]['cpf'] = st.text_input(f"CPF", placeholder= "00000000000", key = f'cpf_{i}_{st.session_state.form_id}')
 
             
