@@ -1,50 +1,15 @@
 import streamlit as st
-import re
 import sqlite3
 import uuid
 import os
 from datetime import date, timedelta
+from modulos.validacao import validar_dados, validar_cpf, validar_data, validar_nome, validar_tel
+from modulos.database import criar_table, conexao_bd, salvar_bd
 
 st.set_page_config(page_title="Monitoramento SLZ", layout="wide")
 
 st.title ("Cadastro de Familia - São Luís")
 st.write("")
-
-def conexao_bd():
-    return sqlite3.connect('Banco_dados.db')
-
-def criar_table():
-        conn = conexao_bd()
-        trabaiador = conn.cursor()
-
-        trabaiador.execute('''
-
-        CREATE TABLE IF NOT EXISTS Familias(
-                           
-            uuid_familia TEXT PRIMARY KEY,
-            bairro TEXT,
-            tipo_moradia TEXT,
-            custo_moradia REAL,
-            renda_familiar REAL,
-            pessoas_familia REAL,
-            cpf_responsavel TEXT UNIQUE
-               )
-        ''')
-        trabaiador.execute('''
-        CREATE TABLE IF NOT EXISTS Pessoas(
-
-            uuid_pessoa TEXT PRIMARY KEY,
-            uuid_familia TEXT,
-            nome TEXT,
-            cpf TEXT UNIQUE,
-            renda REAL,
-            data_nasc TEXT, 
-            telefone TEXT
-                )
-        ''')
-
-        conn.commit()
-        conn.close()
 
 criar_table()
 
@@ -92,82 +57,12 @@ def bairros_slz():
     else:
         return ['Centro', 'Cohab', 'Turu', 'Outros']
 
-def validar_cpf(indice):
-
-    k_cpf = st.session_state[f'cpf_{indice}_{st.session_state.form_id}']
-
-    padrao = r'^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$'
-
-    if not re.match(padrao, k_cpf):
-        st.session_state.membro[indice]['erro_cpf'] = "CPF invalido"
-
-    else:
-        st.session_state.membro[indice]['erro_cpf'] = ""
-
-def validar_nome(indice):
-
-    k_nome = st.session_state[f'nome_{indice}_{st.session_state.form_id}']
-
-    padrao = r"^[A-Za-zÀ-ÿ]+(?:[ \-'’][A-Za-zÀ-ÿ]+)*$"
-
-    if not re.match(padrao, k_nome):
-        st.session_state.membro[indice]['erro_nome'] = "Nome fora do padrão"
-
-    else:
-        st.session_state.membro[indice]['erro_nome'] = ""
-
-def validar_tel(indice):
-
-    k_tel1 = st.session_state[f'telefone_{indice}_{st.session_state.form_id}']
-    k_tel = k_tel1.strip()
-
-    padrao = r'^\(?([1-9]{2})\)?\s?([9]?\d{4})-?(\d{4})$'
-    if k_tel[:1] == "(":
-     ddd_atual = k_tel[1:3]
-    else:
-     ddd_atual = k_tel[:2]
-
-    if not re.match(padrao, k_tel):
-        st.session_state.membro[indice]['erro_tel'] = "Telefone fora do padrão"
-        return
-
-    elif not ddd_atual in ["99", "98" ]:
-        st.session_state.membro[indice]['erro_tel'] = "DDD não pertence ao Maranhão meu jovem"
-
-    else:
-        st.session_state.membro[indice]['erro_tel'] = ""
-
-def validar_dados(cpf, nome, telefone):
-    regra_cpf = r"^\d{11}$"
-
-    regra_nome = r"^[A-Za-zÀ-ÿ ]{3,}$"
-
-    regra_tel = r"^\d{10,11}$"
-   
-    cpfn = re.sub(r'\D', '', cpf)
-    nomen = nome.strip()
-    teln = re.sub(r'\D', '', telefone)
-   
-    if not cpfn or not nomen or not teln:
-        return False, "Há campos vazios, Por favor faça o preenchimento de todos!"
-
-    if not re.match(regra_cpf, cpfn):
-        return False, "CPF invalido! Digite apenas 11 numeros"
-    
-    if not re.match(regra_nome, nomen):
-        return False, "Nome invalido! Por favor insira apenas letras e acentos"
-    
-    if not re.match(regra_tel, teln):
-        return False, "Número telefone invalido! Digite um número telefone valido"
-    
-    return True, "Dados Validos"
-
 def remover_membro(indice):
     st.session_state.membro.pop(indice)
 
 def reset_form():
 
-    st.session_state.membro = [{"nome": " ", "erro_nome":"", "cpf": " ", "erro_cpf": "", "bairro": '', 'tipo_moradia': "Casa Propria ", 'custo_moradia': 0.0, 'renda': 0.0, "erro_renda": "", 'data_nasc': None, "telefone": " ", "erro_tel": ""}]
+    st.session_state.membro = [{"nome": " ", "erro_nome":"", "cpf": " ", "erro_cpf": "", "bairro": '', 'tipo_moradia': "Casa Propria ", 'custo_moradia': 0.0, 'renda': 0.0, "erro_renda": "", 'data_nasc': None, 'erro_data': "", "telefone": " ", "erro_tel": ""}]
     
     st.session_state.form_id += 1
     
@@ -184,12 +79,12 @@ def adicionar_membros():
             st.toast("Preencha o membro atual antes de adicionar um outro!", icon = "🚫")
             return
 
-    st.session_state.membro.append({"nome": " ", "erro_nome":"", "cpf": " ", "erro_cpf": "", "bairro": '', 'tipo_moradia': " ", 'custo_moradia': 0.0, 'renda': 0.0, "erro_renda": "", 'data_nasc': None, "telefone": " ", "erro_tel": ""})
+    st.session_state.membro.append({"nome": " ", "erro_nome":"", "cpf": " ", "erro_cpf": "", "bairro": '', 'tipo_moradia': " ", 'custo_moradia': 0.0, 'renda': 0.0, "erro_renda": "", 'data_nasc': None, 'erro_data': "","telefone": " ", "erro_tel": ""})
 
 if 'membro' not in st.session_state:
     st.session_state.membro = []
 
-    st.session_state.membro.append({"nome": " ", "erro_nome":"", "cpf": " ", "erro_cpf": "", "bairro": '', 'tipo_moradia': " ", 'custo_moradia': 0.0, 'renda': 0.0, "erro_renda": "", 'data_nasc': None, "telefone": " ", "erro_tel": ""})
+    st.session_state.membro.append({"nome": " ", "erro_nome":"", "cpf": " ", "erro_cpf": "", "bairro": '', 'tipo_moradia': " ", 'custo_moradia': 0.0, 'renda': 0.0, "erro_renda": "", 'data_nasc': None, 'erro_data': "", "telefone": " ", "erro_tel": ""})
 
 if 'banco_familias' not in st.session_state:
 
@@ -221,8 +116,9 @@ for i, membro in enumerate(st.session_state.membro):
                 if i > 0:
                     st.button("❌", key=f"btn_excluir_{i}", on_click=remover_membro, args=(i,))
 
-            st.session_state.membro[i]['nome'] = st.text_input(f"Nome", placeholder = "Nome Completo", key = f'nome_{i}_{st.session_state.form_id}')
-
+            st.session_state.membro[i]['nome'] = st.text_input(f"Nome", placeholder = "Nome Completo", on_change=validar_nome, args=(i,), key = f'nome_{i}_{st.session_state.form_id}')
+            if st.session_state.membro[i].get('erro_nome'):
+                st.error(st.session_state.membro[i]['erro_nome'])
             if i == 0:
 
                 c1, c2, c3 = st.columns(3)
@@ -257,17 +153,28 @@ for i, membro in enumerate(st.session_state.membro):
              
              date_min = date.today() - timedelta(days=43800)
              
-             st.session_state.membro[i]['data_nasc'] = st.date_input(f"Data de Nascimento", min_value=date_min, max_value="today"  ,key = f'data_nasc_{i}_{st.session_state.form_id}')
-        
+             st.session_state.membro[i]['data_nasc'] = st.date_input(f"Data de Nascimento", min_value=date_min, max_value=date.today(), on_change=validar_data, args=(i,), key = f'data_nasc_{i}_{st.session_state.form_id}')
+            if st.session_state.membro[i].get('erro_data'):
+             st.error(st.session_state.membro[i]['erro_data'])
+
             st.session_state.membro[i]['telefone'] = st.text_input(f"Telefone", placeholder="98999999999", on_change=validar_tel, args=(i,)  ,key = f'telefone_{i}_{st.session_state.form_id}')
             if st.session_state.membro[i].get('erro_tel'):
                 st.error(st.session_state.membro[i]['erro_tel'])
 st.write("")
 
+erro_form = False
+
+for m in st.session_state.membro:
+    if any([m.get('erro_cpf'), m.get('erro_nome'), m.get('erro_tel'), m.get('erro_data')]):
+        erro_form = True
+        break
+
 c_btn1, c_btn2, c_vazia = st.columns([1.2, 1.5, 4])
 
 with c_btn1:
-    finalizar = st.button("Finalizar cadastro da familia")
+
+    msg = "Há campos com erros. Verifique as mensagens em vermelho." if erro_form else "Clique para salva a família"
+    finalizar = st.button("Finalizar cadastro da familia", disabled=erro_form, help=msg if erro_form else None)
     
 with c_btn2:
     st.button(' ➕ Membro', on_click = adicionar_membros)

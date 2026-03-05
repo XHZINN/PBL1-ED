@@ -5,6 +5,7 @@ import json # arquivos json
 import folium # pra criar o mapa
 from folium.plugins import HeatMap
 from streamlit_folium import st_folium
+from modulos.database import pegar_totais
 
 # config da página (o titulozinho la em cima e o tamanho do layout)
 st.set_page_config(page_title="Monitoramento SLZ", layout="wide")
@@ -149,6 +150,19 @@ with col_tabela_meio:
         use_container_width=True, 
         hide_index=True # esconde a coluna de index
     )
+
+totais = pegar_totais()
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.metric(label="Total de Familias", value=int(totais[0]))
+
+with col2:
+    st.metric(label="Total de Pessoas Residentes", value=int(totais[1]))
+
+st.divider()
+st.write("Dados lidos em tempo real do arquivo: `Banco_dados.db`")
 
 st.write("---")
 st.caption("Última atualização dos dados: 22 de Fevereiro de 2026")
