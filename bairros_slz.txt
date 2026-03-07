@@ -3,6 +3,7 @@ Alemanha
 Apeadouro
 Bairro de Fátima 
 Bequimão 
+Camboa
 Centro 
 Cidade Operária
 Cidade Olímpica 
@@ -12,6 +13,7 @@ Cohatrac
 Coroadinho
 Cruzeiro do Anil
 Estiva
+Ilhinha
 Ipase 
 Itaqui-Bacanga
 Jaracaty
@@ -25,6 +27,7 @@ Ponta d'Areia
 Ponta do Farol
 Renascença
 Reserva Itapiracó 
+Rio Anil
 Sá Viana
 Santa Cruz
 Santa Efigênia 
@@ -34,4 +37,5 @@ São Raimundo
 Turu
 Vila Emerson
 Vila Luizão
+Vila Maranhão
 Vila Palmeira

@@ -1,10 +1,8 @@
 import streamlit as st
-import sqlite3
-import uuid
 import os
 from datetime import date, timedelta
-from modulos.validacao import validar_dados, validar_cpf, validar_data, validar_nome, validar_tel
-from modulos.database import criar_table, conexao_bd, salvar_bd
+from modulos.validacao import validar_dados, validar_cpf, validar_data, validar_nome, validar_tel, validar_Bairro
+from modulos.database import criar_table, salvar_Familia, nome_bairros
 
 st.set_page_config(page_title="Monitoramento SLZ", layout="wide")
 
@@ -17,45 +15,6 @@ def limpar_dados(membros):
 
     for m in membros:
         cpfl = m['cpf']
-
-def salvar_bd(membros, bairro_f, moradia_f, custo_f, renda_f, quantidade_f):
-
-    uuid_familia = str(uuid.uuid4())
-    conn = conexao_bd()
-    pen = conn.cursor()
-
-    try:
-
-        pen.execute('''
-
-            INSERT INTO Familias(uuid_familia, bairro, tipo_moradia, custo_moradia, renda_familiar,pessoas_familia, cpf_responsavel)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (uuid_familia, bairro_f, moradia_f, custo_f, renda_f, quantidade_f, st.session_state.membro[0]['cpf']))
-        for m in membros:
-            uuid_pessoa = str(uuid.uuid4())
-            pen.execute('''
-
-            INSERT INTO Pessoas(uuid_pessoa, uuid_familia, nome, cpf, renda, data_nasc, telefone)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (uuid_pessoa, uuid_familia, m['nome'], m['cpf'], m['renda'], m['data_nasc'], m['telefone']))
-        conn.commit()
-        st.success("Família e Membros salvos com sucesso")
-
-    except sqlite3.IntegrityError:
-            st.error("Erro: Um dos CPFs já está cadastrado no sistema!")
-    finally:
-        conn.close()
-    
-def bairros_slz():
-    path_B = 'bairros_slz.txt'
-
-    if os.path.exists(path_B):
-        with open (path_B, 'r', encoding= 'utf-8') as b:
-
-            bairros = [linha.strip() for linha in b.readlines() if linha.strip()]
-            return sorted(bairros)
-    else:
-        return ['Centro', 'Cohab', 'Turu', 'Outros']
 
 def remover_membro(indice):
     st.session_state.membro.pop(indice)
@@ -93,9 +52,9 @@ if 'banco_familias' not in st.session_state:
 if 'form_id' not in st.session_state:
     st.session_state.form_id = 0
 
-bairros = bairros_slz()
-if 'Outros' not in bairros:
-    bairros.append('Outros')
+bairros = nome_bairros()
+if 'Outro' not in bairros:
+    bairros.append('Outro')
 
 col_esq, espaco, col_dir = st.columns([4.5, 1, 4.5])
 
@@ -121,11 +80,30 @@ for i, membro in enumerate(st.session_state.membro):
                 st.error(st.session_state.membro[i]['erro_nome'])
             if i == 0:
 
-                c1, c2, c3 = st.columns(3)
+                c0, c1, = st.columns(2)
+
+                with c0:
+                    
+                    bairro_s = st.selectbox(f"Bairro", options=bairros, key= f'bairro_{i}_{st.session_state.form_id}')
 
                 with c1:
-                    
-                    st.session_state.membro[i]['bairro'] = st.selectbox(f"Bairro", options=bairros, key= f'bairro_{i}_{st.session_state.form_id}')
+                    if bairro_s == "Outro":
+                        st.text_input(f"Bairro", key=(f'input_{i}_{st.session_state.form_id}'), placeholder="Nome do bairro", on_change=validar_Bairro, args=(i,))
+
+                erro_bairro = st.empty()
+
+                nome_k = st.session_state.get(f'input_{i}_{st.session_state.form_id}')
+
+                if nome_k and st.session_state.membro[i]['bairro'] == "":
+                    erro_bairro.error(f"⚠️ O local '{nome_k}' não foi reconhecido.")
+
+                elif nome_k == "":
+                    erro_bairro.error(f"⚠️ Coloque o nome de algum bairro no campo novo.")
+
+                else:
+                        st.session_state.membro[i]['bairro'] = bairro_s
+
+                c2, c3 = st.columns(2)
 
                 with c2:
                     opcoes = ["Casa Propria", "Cedida", "Aluguel", "Ocupação"]
@@ -133,14 +111,8 @@ for i, membro in enumerate(st.session_state.membro):
                     st.session_state.membro[i]['tipo_moradia'] = moradia
 
                 with c3:
-                    if moradia in ["Aluguel", "Cedida"]:
 
-                        label_custo = "Valor do aluguel" if moradia == "Aluguel" else "Custo de moradia (se houver)"
-                        st.session_state.membro[i]['custo_moradia'] = st.number_input(label_custo, step=50.0, min_value=0.0, key=f'custo_moradia_{i}_{st.session_state.form_id}')
-                    
-                    else:
-
-                        st.session_state.membro[i]['custo_moradia'] = 0.0
+                    st.session_state.membro[i]['custo_moradia'] = st.number_input("Custo de Moradia", step=50.0, min_value=0.0, key=f'custo_moradia_{i}_{st.session_state.form_id}')
 
             st.session_state.membro[i]['cpf'] = st.text_input(f"CPF", placeholder= "00000000000", key = f'cpf_{i}_{st.session_state.form_id}', on_change=validar_cpf, args=(i,))
             if st.session_state.membro[i].get('erro_cpf'):
@@ -164,8 +136,25 @@ st.write("")
 
 erro_form = False
 
-for m in st.session_state.membro:
-    if any([m.get('erro_cpf'), m.get('erro_nome'), m.get('erro_tel'), m.get('erro_data')]):
+for i, m in enumerate(st.session_state.membro):
+
+    k_select = f'bairro_{i}_{st.session_state.form_id}'
+    k_input = f'input_{i}_{st.session_state.form_id}'
+
+    bairro_void = False
+
+    if st.session_state.get(k_select) == "Outro":
+        if not st.session_state.get(k_input):
+            bairro_void = True
+
+    if any([
+        m.get('erro_cpf'),
+        m.get('erro_nome'),
+        m.get('erro_tel'),
+        m.get('erro_data'),
+        bairro_void,
+        not m.get('bairro')
+        ]):
         erro_form = True
         break
 
@@ -209,7 +198,7 @@ if finalizar:
             st.session_state.banco_familias[cpf_responsavel] = dados_familia
 
             try:
-                salvar_bd(dados_familia, bairro_f, moradia_f, custo_f, renda_f, quantidade_f)
+                salvar_Familia(dados_familia, bairro_f, moradia_f, custo_f, renda_f, quantidade_f)
                 st.button("Cadastrar nova família", on_click=reset_form)
              
             except Exception as e:

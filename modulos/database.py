@@ -5,6 +5,72 @@ import uuid
 def conexao_bd():
     return sqlite3.connect('Banco_dados.db')
 
+def salvar_Bairro(nome_b, local):
+
+    conn = conexao_bd()
+    cursor = conn.cursor()
+
+    
+
+    lat = local.latitude
+    lon = local.longitude
+
+
+    id_bairro = str(uuid.uuid4())
+
+    cursor.execute('''
+                    
+                    INSERT INTO Bairros(uuid_bairro, nome_bairro, latitude, longitude)
+                    VALUES (?, ?, ?, ?)
+                    ''', (id_bairro, nome_b.title(), lat, lon))
+
+    conn.commit()
+
+def nome_bairros():
+     
+     conn = conexao_bd()
+     cursor = conn.cursor()
+
+     cursor.execute('SELECT nome_bairro FROM Bairros ORDER BY nome_bairro ASC')
+
+     bairros = [linha[0] for linha in cursor.fetchall()]
+
+     conn.close
+     return bairros
+
+# def bairros_q():
+     
+#      conn = conexao_bd()
+#      cursor = conn.cursor()
+
+#      cursor.execute('SELECT nome_bairro, latitude, longitude FROM Bairros ORDER BY nome_bairro ASC')
+
+#      bairros = [linha for linha in cursor.fetchall()]
+
+#      conn.close()
+#      return bairros
+
+def bairros_query():
+     
+     conn = conexao_bd()
+     cursor = conn.cursor()
+
+     cursor.execute('SELECT nome_bairro, latitude, longitude FROM Bairros ORDER BY nome_bairro ASC')
+     dados = cursor.fetchall()
+
+     bairros = [{
+          
+          'bairro': linha[0],
+          'lat': linha[1],
+          'lon': linha[2],
+          'intensidade': 0.5
+         }
+        for linha in dados
+     ]
+
+     conn.close()
+     return bairros
+  
 def criar_table():
         conn = conexao_bd()
         trabaiador = conn.cursor()
@@ -35,10 +101,20 @@ def criar_table():
                 )
         ''')
 
+        trabaiador.execute('''
+        CREATE TABLE IF NOT EXISTS Bairros(
+            uuid_bairro TEXT PRIMARY KEY,
+            nome_bairro TEXT UNIQUE,
+            latitude REAL,
+            longitude REAL,
+            zona TEXT
+                )
+        ''')
+
         conn.commit()
         conn.close()
 
-def salvar_bd(membros, bairro_f, moradia_f, custo_f, renda_f, quantidade_f):
+def salvar_Familia(membros, bairro_f, moradia_f, custo_f, renda_f, quantidade_f):
 
     uuid_familia = str(uuid.uuid4())
     conn = conexao_bd()

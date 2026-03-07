@@ -1,9 +1,0 @@
-[
-    {"bairro": "Coroadinho", "lat": -2.56, "lon": -44.27, "intensidade": 1.0},
-    {"bairro": "Cidade Olímpica", "lat": -2.578, "lon": -44.204, "intensidade": 0.9},
-    {"bairro": "Anjo da Guarda", "lat": -2.558, "lon": -44.316, "intensidade": 0.85},
-    {"bairro": "Vila Maranhão", "lat": -2.61, "lon": -44.34, "intensidade": 0.8},
-    {"bairro": "Rio Anil / Camboa", "lat": -2.525, "lon": -44.295, "intensidade": 0.7},
-    {"bairro": "Liberdade", "lat": -2.535, "lon": -44.285, "intensidade": 0.75},
-    {"bairro": "Ilhinha", "lat": -2.505, "lon": -44.298, "intensidade": 0.6}
-]
