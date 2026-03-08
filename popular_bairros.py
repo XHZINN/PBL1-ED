@@ -6,7 +6,6 @@ import time
 
 conn = sqlite3.connect("Banco_dados.db")
 cursor = conn.cursor()
-cursor.execute("DELETE FROM Bairros")
 
 criar_table()
 geolocator = Nominatim(user_agent="coord_slz")

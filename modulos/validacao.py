@@ -2,8 +2,6 @@ import re
 import streamlit as st
 from datetime import date
 import unicodedata
-from modulos.database import conexao_bd, salvar_Bairro
-from geopy import Nominatim
 
 def validar_cpf(indice):
 
@@ -130,37 +128,8 @@ def limpar(t):
      
      return "".join(c for c in unicodedata.normalize('NFD', t) if unicodedata.category(c) != 'Mn').casefold()
 
-def validar_Bairro(indice):
-     
-     k_bairro = f'input_{indice}_{st.session_state.form_id}'
-     nome_b = st.session_state.get(k_bairro)
+def limpar_somente_numeros(valor):
+    if valor and isinstance(valor, str):
+        return re.sub(r'\D', '', valor) # \D é um atalho para "tudo que não é dígito"
+    return str(valor) if valor else ""
 
-     if not nome_b:
-          return
-
-     conn = conexao_bd()
-
-     bairros = [linha[0] for linha in conn.execute('SELECT nome_bairro FROM Bairros').fetchall()]
-     conn.close()
-
-     if limpar(nome_b) in [limpar(b) for b in bairros]:
-          st.session_state.membro[indice]['bairro'] = nome_b.title()
-          return 
-     
-     geolocator = Nominatim(user_agent="buscar_bairro")
-     busca_b = f"{nome_b}, São Luis, MA, Brasil" 
-
-     try:
-
-        local = geolocator.geocode(busca_b, timeout=10)
-
-        if local and ("São Luís" in local.address or "Sao Luis" in local.address):
-
-            salvar_Bairro(nome_b, local)
-            st.session_state.membro[indice]['bairro'] = nome_b.title()
-            return     
-     except Exception as e:
-         print(f"Erro na API: {e}")
-    
-     st.session_state.membro[indice]['bairro'] = ""
-     st.error(f"⚠️ O local '{nome_b}' não foi reconhecido. Tente novamente.")
