@@ -2,7 +2,25 @@ import sqlite3
 import streamlit as st
 import uuid
 from geopy import Nominatim
+import datetime
+import shutil
+import os
 from modulos.validacao import limpar_somente_numeros, limpar
+
+def backup():
+    
+    if not os.path.isdir('Backups'):
+         os.mkdir("Backups")
+
+    banco_dados = "Banco_dados.db"
+    nome_backup = f"backup_{datetime.today()}.db"
+
+    path = os.path.join("Backups", nome_backup)
+
+    shutil.copy2(banco_dados, path)
+
+    return f"Backup {nome_backup} foi feito com sucesso!"
+
 
 def conexao_bd():
     return sqlite3.connect('Banco_dados.db')
@@ -74,18 +92,6 @@ def nome_bairros():
      conn.close
      return bairros
 
-# def bairros_q():
-     
-#      conn = conexao_bd()
-#      cursor = conn.cursor()
-
-#      cursor.execute('SELECT nome_bairro, latitude, longitude FROM Bairros ORDER BY nome_bairro ASC')
-
-#      bairros = [linha for linha in cursor.fetchall()]
-
-#      conn.close()
-#      return bairros
-
 def bairros_query():
      
      conn = conexao_bd()
@@ -151,6 +157,17 @@ def criar_table():
             FOREIGN KEY (uuid_familia) REFERENCES Familias(uuid_familia)
                 )
         ''')
+
+        trabaiador.execute(''''
+        CREATE TABLE IF NOT EXISTS Backup(
+            
+            uuid_backup INTEGER PRIMARY KEY NOT NULL,
+            nome_backup TEXT NOT NULL,
+            caminho TEXT NOT NULL,
+            data_criacao DATETIME NOT NULL,
+            tipo TEXT              
+                )
+            ''')
 
         
 

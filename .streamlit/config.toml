@@ -1,0 +1,5 @@
+[theme]
+# Cor que aparece no foco dos inputs, botões e barras de progresso
+base = "dark"
+primaryColor = "#2E7D32" # Um verde escuro profissional
+

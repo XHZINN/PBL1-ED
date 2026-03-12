@@ -48,33 +48,8 @@ def adicionar_membros():
         "telefone": "", "erro_tel": ""
     })
 
-if 'membro' not in st.session_state:
-    st.session_state.membro = []
-    st.session_state.membro.append({
-        "nome": "", "erro_nome":"", "cpf": "", "erro_cpf": "", 
-        "sexo": "Masculino", "gestante": 0, "pcd": 0, "bairro": '', 
-        'tipo_moradia': "", 'custo_moradia': 0.0, 'renda': 0.0, 
-        "erro_renda": "", 'data_nasc': None, 'erro_data': "", 
-        "telefone": "", "erro_tel": ""
-    })
-
-if 'banco_familias' not in st.session_state:
-    st.session_state.banco_familias = {}
-
-if 'form_id' not in st.session_state:
-    st.session_state.form_id = 0
-
-bairros = nome_bairros()
-if 'Outro' not in bairros:
-    bairros.append('Outro')
-
-col_esq, espaco, col_dir = st.columns([4.5, 1, 4.5])
-
-for i, membro in enumerate(st.session_state.membro):
-    coluna_atual = col_esq if i % 2 == 0 else col_dir
-
-    with coluna_atual:
-        with st.container(border=True):
+def form(i, membro, bairros):
+    with st.container(border=True):
             c_header, c_trash = st.columns([0.8, 0.2])
 
             with c_header:
@@ -119,7 +94,7 @@ for i, membro in enumerate(st.session_state.membro):
                 with c3:
                     membro['custo_moradia'] = st.number_input("Custo de Moradia", step=50.0, min_value=0.0, key=f'custo_moradia_{i}_{st.session_state.form_id}')
 
-            membro['cpf'] = st.text_input(f"CPF", placeholder="00000000000", key=f'cpf_{i}_{st.session_state.form_id}', on_change=validar_cpf, args=(i,))
+            membro['cpf'] = st.text_input(f"CPF", placeholder="00000000000", max_chars=11, key=f'cpf_{i}_{st.session_state.form_id}', on_change=validar_cpf, args=(i,))
             if membro.get('erro_cpf'):
                 st.error(membro['erro_cpf'])
             
@@ -129,8 +104,8 @@ for i, membro in enumerate(st.session_state.membro):
             with c5:
                 date_min = date.today() - timedelta(days=43800)
                 membro['data_nasc'] = st.date_input(f"Data de Nascimento", min_value=date_min, max_value=date.today(), on_change=validar_data, args=(i,), key=f'data_nasc_{i}_{st.session_state.form_id}')
-                if membro.get('erro_data'):
-                    st.error(membro['erro_data'])
+            if membro.get('erro_data'):
+                st.error(membro['erro_data'])
             
             col_sex, col_ges, col_pcd = st.columns(3)
             with col_sex:
@@ -145,48 +120,109 @@ for i, membro in enumerate(st.session_state.membro):
                 membro['gestante'] = 0
 
             with col_pcd:
-                pcd_select = st.checkbox("PCD", value=bool(membro['pcd']), key=f'pcd_{i}_{st.session_state.form_id}')
-                membro['pcd'] = 1 if pcd_select else 0
+                pcd_select = st.selectbox("PCD", options=["Sim", "Não"], key=f'pcd_{i}_{st.session_state.form_id}')
+                membro['pcd'] = 1 if pcd_select == "Sim" else 0
                         
-            membro['telefone'] = st.text_input(f"Telefone", placeholder="98999999999", on_change=validar_tel, args=(i,), key=f'telefone_{i}_{st.session_state.form_id}')
+            membro['telefone'] = st.text_input(f"Telefone" , placeholder="98999999999", on_change=validar_tel, args=(i,), key=f'telefone_{i}_{st.session_state.form_id}')
             if membro.get('erro_tel'):
-                st.error(membro['erro_tel']) 
+                st.error(membro['erro_tel'])
+    st.write("")
 
-st.write("")
+if 'membro' not in st.session_state:
+    st.session_state.membro = []
+    st.session_state.membro.append({
+        "nome": "", "erro_nome":"", "cpf": "", "erro_cpf": "", 
+        "sexo": "Masculino", "gestante": 0, "pcd": 0, "bairro": '', 
+        'tipo_moradia': "", 'custo_moradia': 0.0, 'renda': 0.0, 
+        "erro_renda": "", 'data_nasc': None, 'erro_data': "", 
+        "telefone": "", "erro_tel": ""
+    })
 
+if 'banco_familias' not in st.session_state:
+    st.session_state.banco_familias = {}
+
+if 'form_id' not in st.session_state:
+    st.session_state.form_id = 0
+
+bairros = nome_bairros()
+if 'Outro' not in bairros:
+    bairros.append('Outro')
+
+for i in range(0, len(st.session_state.membro), 2):
+
+    cols = st.columns([4.5, 0.5, 4.5])
+
+    with cols[0]:
+        membro_esq = st.session_state.membro[i]
+        form(i, membro_esq, bairros)
+
+    if i + 1 < len(st.session_state.membro):
+        with cols[2]:
+            membro_dir = st.session_state.membro[i + 1]
+            form(i+1, membro_dir, bairros)
+  
+        
+lista_erro = []
 erro_form = False
 for i, m in enumerate(st.session_state.membro):
 
-    lista_erros = [
-        m.get('erro_cpf'), 
-        m.get('erro_nome'), 
-        m.get('erro_tel'),
-        m.get('erro_data'),
-        not m.get('nome').strip(), 
-        not m.get('cpf').strip() 
-    ]
+    dict_erros = {
+        'CPF': m.get('erro_cpf') or not m.get('cpf').strip(), 
+        'Nome': m.get('erro_nome') or not m.get('nome').strip(), 
+        'Telefone': m.get('erro_tel'),
+        'Data Nascimento': m.get('erro_data')
+        }
+    
 
     if i == 0:
         k_select = f'bairro_{i}_{st.session_state.form_id}'
         k_input = f'input_{i}_{st.session_state.form_id}'
+        k_data = f'data_nasc_{i}_{st.session_state.form_id}'
+        k_tel = f'telefone_{i}_{st.session_state.form_id}'
+        
+
         bairro_void = False
+        date_res = False
+        tel_res = False
 
         if st.session_state.get(k_select) == "Outro":
             if not st.session_state.get(k_input):
                 bairro_void = True
+        
+        if st.session_state.get(k_data) == date.today():
+            date_res = True
 
-        lista_erros.append(bairro_void)
-        lista_erros.append(not m.get('bairro'))
+        if st.session_state.get(k_tel) == "":
+            tel_res = True
 
-    if any(lista_erros):
+        dict_erros['bairro'] = bairro_void 
+        dict_erros['Data Nascimento'] = dict_erros['Data Nascimento'] or date_res
+        dict_erros['Telefone'] = dict_erros['Telefone'] or tel_res
+
+    campos_erros = [k for k, v in dict_erros.items() if v]
+
+    if campos_erros:
         erro_form = True
-        break
+        label = "Responsável" if i == 0 else f"Membro {i + 1}"
+
+        mensagem = f"*{label}*: {" | ".join(campos_erros)}"
+        lista_erro.append(mensagem)
+    
+col_esq, espaco, col_dir = st.columns([4.5, 1, 4.5])
+
+with col_esq:
+        if erro_form:
+            with st.expander("⚠️ Pendências Encontradas", expanded=True):
+                st.write("Para habilitar o botão de salvar, corrija os seguintes itens:")
+                for erro in lista_erro:
+                    st.write(erro)
+
 
 c_btn1, c_btn2, c_vazia = st.columns([1.2, 1.5, 4])
 with c_btn1:
-    msg = "Há campos com erros. Verifique as mensagens em vermelho." if erro_form else "Clique para salvar a família"
+
+    msg = "Corrija as pendências listadas acima" if erro_form else "Clique para salvar a família"
     finalizar = st.button("Finalizar cadastro da familia", disabled=erro_form, help=msg if erro_form else None)
-    
 with c_btn2:
     st.button(' ➕ Membro', on_click=adicionar_membros)
     
