@@ -1,8 +1,7 @@
 import streamlit as st
-import os
 from datetime import date, timedelta
 from modulos.validacao import  validar_cpf, validar_data, validar_nome, validar_tel
-from modulos.database import criar_table, salvar_Familia, nome_bairros, novo_bairro
+from modulos.database import criar_table, salvar_Familia, nome_bairros, novo_bairro, backup
 
 st.set_page_config(page_title="Monitoramento SLZ", layout="wide")
 
@@ -10,13 +9,10 @@ st.title("Cadastro de Familia - São Luís")
 st.write("")
 
 criar_table()
-
-def limpar_dados(membros):
-    for m in membros:
-        cpfl = m['cpf']
+backup()
 
 def remover_membro(indice):
-    st.session_state.membro.pop(indice)
+    st.session_state.membro.pop(indice) 
 
 def reset_form():
     st.session_state.membro = [{
@@ -53,6 +49,7 @@ def form(i, membro, bairros):
             c_header, c_trash = st.columns([0.8, 0.2])
 
             with c_header:
+ 
                 label = "Responsavel" if i == 0 else f"Membro {i+1}"
                 st.write(label)
 

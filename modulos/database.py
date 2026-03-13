@@ -2,29 +2,69 @@ import sqlite3
 import streamlit as st
 import uuid
 from geopy import Nominatim
-import datetime
+from datetime import date, timedelta, datetime
 import shutil
 import os
 from modulos.validacao import limpar_somente_numeros, limpar
 
-def backup():
-    
-    if not os.path.isdir('Backups'):
-         os.mkdir("Backups")
-
-    banco_dados = "Banco_dados.db"
-    nome_backup = f"backup_{datetime.today()}.db"
-
-    path = os.path.join("Backups", nome_backup)
-
-    shutil.copy2(banco_dados, path)
-
-    return f"Backup {nome_backup} foi feito com sucesso!"
-
-
 def conexao_bd():
     return sqlite3.connect('Banco_dados.db')
 
+def backup():
+
+    last_data = buscar_data_backup()
+    agora = datetime.now()
+    hoje = agora.date()
+    data_formatada = agora.strftime('%Y-%m-%d %H:%M:%S')
+
+    if hoje <= last_data + timedelta(days=7):
+
+        try:
+            if not os.path.isdir('Backups'):
+                os.makedirs("Backups")
+
+            banco_dados = "Banco_dados.db"
+            nome_backup = f"backup_{hoje}.db"
+
+            path = os.path.join("Backups", nome_backup)
+
+            shutil.copy2(banco_dados, path)
+        
+
+            conn = conexao_bd()
+            cursor = conn.cursor()
+
+            uuid_backup = str(uuid.uuid4())
+            tipo = "Completo"
+
+            cursor.execute('''
+                INSERT INTO Backup(uuid_backup, nome_backup, caminho, data_criacao, tipo)
+                VALUES (?, ?, ?, ?, ?)
+                    ''', (uuid_backup, nome_backup, path, data_formatada, tipo))
+            
+            conn.commit()
+            conn.close()
+
+        except Exception as e:
+             print(f'Erro ao salvar novo backup semanal: {e}')
+    else:
+         print("Backup esta em dia meu nobre")
+
+def buscar_data_backup():
+     
+     try:
+    
+        conn = conexao_bd()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT data_criacao FROM Backup ORDER BY data_criacao DESC LIMIT 1')
+        data = cursor.fetchone()
+        conn.close()
+
+        return datetime.strptime(data[0], '%Y-%m-%d').date() if data else date(2000, 1, 1)
+     except Exception as e:
+          return date(2000, 1, 1)
+     
 def salvar_Bairro(nome_b, local):
 
     conn = conexao_bd()
@@ -158,10 +198,10 @@ def criar_table():
                 )
         ''')
 
-        trabaiador.execute(''''
+        trabaiador.execute('''
         CREATE TABLE IF NOT EXISTS Backup(
             
-            uuid_backup INTEGER PRIMARY KEY NOT NULL,
+            uuid_backup TEXT PRIMARY KEY NOT NULL,
             nome_backup TEXT NOT NULL,
             caminho TEXT NOT NULL,
             data_criacao DATETIME NOT NULL,
