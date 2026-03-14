@@ -54,7 +54,7 @@ def dados_familia_calculo(familia):
      cursor = conn.cursor()
 
      cursor.execute('''
-        SELECT tipo_moradia, custo_moradia, renda_familiar, pessoas_familia 
+        SELECT uuid_familia, tipo_moradia, custo_moradia, renda_familiar, pessoas_familia 
         FROM Familias 
         WHERE uuid_familia = ? 
         ''', (familia,))
@@ -68,7 +68,7 @@ def dados_familia_calculo(familia):
      info_familia = dict(linha_familia)
      
      cursor.execute('''
-        SELECT gestante, pcd, data_nasc
+        SELECT nome, gestante, pcd, data_nasc, renda
         FROM Pessoas
         WHERE uuid_familia = ?
         ''', (familia,))
@@ -251,6 +251,11 @@ def salvar_Familia(membros, bairro_f, moradia_f, custo_f, renda_f, quantidade_f)
     conn = conexao_bd()
     pen = conn.cursor()
 
+    pen.execute('SELECT uuid_bairro FROM Bairros WHERE nome_bairro = ?', (bairro_f.title(),))
+    bairro_id_fet = pen.fetchone()
+    bairro_id = bairro_id_fet[0]
+
+
     for m in membros:
          m['cpf'] = limpar_somente_numeros(m['cpf'])
          m['telefone'] = limpar_somente_numeros(m['telefone'])
@@ -260,7 +265,7 @@ def salvar_Familia(membros, bairro_f, moradia_f, custo_f, renda_f, quantidade_f)
 
             INSERT INTO Familias(uuid_familia, uuid_bairro, tipo_moradia, custo_moradia, renda_familiar, pessoas_familia, cpf_responsavel)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (uuid_familia, bairro_f, moradia_f, custo_f, renda_f, quantidade_f, st.session_state.membro[0]['cpf']))
+            ''', (uuid_familia, bairro_id, moradia_f, custo_f, renda_f, quantidade_f, st.session_state.membro[0]['cpf']))
         for m in membros:
             uuid_pessoa = str(uuid.uuid4())
             pen.execute('''
@@ -277,6 +282,7 @@ def salvar_Familia(membros, bairro_f, moradia_f, custo_f, renda_f, quantidade_f)
         conn.close()
     
 def pegar_totais():
+
     conn = conexao_bd()
     cursor = conn.cursor()
     
