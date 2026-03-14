@@ -120,85 +120,87 @@ st.write("---")
 
 #==== PARTE DO DETALHAMENTO E MAPA ====
 st.header("Detalhamento das Zonas de Alerta")
+# a gente vai fazer um if not pois assim evita de dar erro caso a DF esteje vazia
+if not df.empty:
+    # aqui a gente vai botar um resumo rápido, umas métricas pra aparecer no começo
+    m1, m2, m3 = st.columns(3)
+    maior_risco = df['intensidade'].max()
+    bairro_critico = df.loc[df['intensidade'].idxmax(), 'bairro']
 
-# aqui a gente vai botar um resumo rápido, umas métricas pra aparecer no começo
+    m1.metric("Total de Áreas", len(df))
+    m2.metric("Maior Intensidade", f"{maior_risco:.2f}")
+    m3.metric("Bairro Crítico", bairro_critico)
 
-m1, m2, m3 = st.columns(3)
-maior_risco = df['intensidade'].max()
-bairro_critico = df.loc[df['intensidade'].idxmax(), 'bairro']
+    #==== TABELA ====
 
-m1.metric("Total de Áreas", len(df))
-m2.metric("Maior Intensidade", f"{maior_risco:.2f}")
-m3.metric("Bairro Crítico", bairro_critico)
+    # Criamos outra "gambiarrinha" de colunas pra tabela não ficar esticada demais na tela toda
+    col_tabela_esq, col_tabela_meio, col_tabela_dir = st.columns([1, 3, 1])
 
-#==== TABELA ====
+    with col_tabela_meio:
+        # criamos apenas com as colunas que interessam e ordenamos pela intensidade
+        tabela_base = df[['bairro', 'intensidade']].sort_values(by='intensidade', ascending=False)
 
-# Criamos outra "gambiarrinha" de colunas pra tabela não ficar esticada demais na tela toda
-col_tabela_esq, col_tabela_meio, col_tabela_dir = st.columns([1, 3, 1])
+        # aqui a gente cria o estilo do fundo colorido
+        # cmap='YlOrRd' significa Yellow-Orange-Red (Amarelo-Laranja-Vermelho)
+        tabela_estilizada = tabela_base.style.background_gradient(
+            cmap='YlOrRd',
+            subset=['intensidade']
+        ).format(precision=2)
 
-with col_tabela_meio:
-    # criamos apenas com as colunas que interessam e ordenamos pela intensidade
-    tabela_base = df[['bairro', 'intensidade']].sort_values(by='intensidade', ascending=False)
+        st.dataframe(
+            tabela_estilizada, 
+            use_container_width=True, 
+            hide_index=True # esconde a coluna de index
+        )
 
-    # aqui a gente cria o estilo do fundo colorido
-    # cmap='YlOrRd' significa Yellow-Orange-Red (Amarelo-Laranja-Vermelho)
-    tabela_estilizada = tabela_base.style.background_gradient(
-        cmap='YlOrRd',
-        subset=['intensidade']
-    ).format(precision=2)
+    totais = pegar_totais()
 
-    st.dataframe(
-        tabela_estilizada, 
-        use_container_width=True, 
-        hide_index=True # esconde a coluna de index
-    )
+    col1, col2 = st.columns(2)
 
-totais = pegar_totais()
+    with col1:
+        st.metric(label="Total de Familias", value=int(totais[0]))
 
-col1, col2 = st.columns(2)
+    with col2:
+        st.metric(label="Total de Pessoas Residentes", value=int(totais[1]))
 
-with col1:
-    st.metric(label="Total de Familias", value=int(totais[0]))
+    st.divider()
 
-with col2:
-    st.metric(label="Total de Pessoas Residentes", value=int(totais[1]))
+    #=== GRÁFICOS ===
 
-st.divider()
+    st.write("### Análise Estatística por Bairro")
+    # vamos usar a tática de dividir a página em colunas de novo 
+    graf_col1, graf_col2 = st.columns(2)
 
-#=== GRÁFICOS ===
+    with graf_col1: # 1° gráfico: de Barras)
+        
+        fig_barras = px.bar( #guardamos na variável o gráfico de barras (a função px.bar)
+            df, # o primeiro argumento é a fonte dos dados 
+            x='bairro', # pega o bairro e usa no eixo x
+            y='intensidade', # pega a intensidade e usa no eixo y
+            title="Nível de Intensidade por Bairro", # título né
+            #esse aqui serve pra mostrar de forma diferente do BD, se tipo, no BD estivesse
+            #intensidade_risco_calcular ai ele mostraria o que tá dps dos 2 pontos
+            # {'Nome_Original': 'Nome_Para_Exibir'}
+            labels={'intensidade': 'Intensidade', 'bairro': 'Bairro'},
+            color='intensidade', # muda a cor com base na intensidade
+            color_continuous_scale='YlOrRd' # a mesma escala da tabela também
+        )
+        st.plotly_chart(fig_barras, use_container_width=True) 
+        # use_container_width=True é pra ocupar toda a largura da coluna (responsividade)
+        #o px.bar só cria a tabela, mas é esse comando de cima que realmente mostra o gráfico
 
-st.write("### Análise Estatística por Bairro")
-# vamos usar a tática de dividir a página em colunas de novo 
-graf_col1, graf_col2 = st.columns(2)
-
-with graf_col1: # 1° gráfico: de Barras)
+    with graf_col2: # 2° gráfico: de Torta (oh nomezinho ruim, pizza sola)
     
-    fig_barras = px.bar( #guardamos na variável o gráfico de barras (a função px.bar)
-        df, # o primeiro argumento é a fonte dos dados 
-        x='bairro', # pega o bairro e usa no eixo x
-        y='intensidade', # pega a intensidade e usa no eixo y
-        title="Nível de Intensidade por Bairro", # título né
-        #esse aqui serve pra mostrar de forma diferente do BD, se tipo, no BD estivesse
-        #intensidade_risco_calcular ai ele mostraria o que tá dps dos 2 pontos
-        # {'Nome_Original': 'Nome_Para_Exibir'}
-        labels={'intensidade': 'Intensidade', 'bairro': 'Bairro'},
-        color='intensidade', # muda a cor com base na intensidade
-        color_continuous_scale='YlOrRd' # a mesma escala da tabela também
-    )
-    st.plotly_chart(fig_barras, use_container_width=True) 
-    # use_container_width=True é pra ocupar toda a largura da coluna (responsividade)
-    #o px.bar só cria a tabela, mas é esse comando de cima que realmente mostra o gráfico
-
-with graf_col2: # 2° gráfico: de Torta (oh nomezinho ruim, pizza sola)
- 
-    fig_rosca = px.pie(
-        df, 
-        values='intensidade', 
-        names='bairro', 
-        title="Distribuição Relativa de Risco",
-        hole=0.4 # faz o buraco no meio
-    )
-    st.plotly_chart(fig_rosca, use_container_width=True)
+        fig_rosca = px.pie(
+            df, 
+            values='intensidade', 
+            names='bairro', 
+            title="Distribuição Relativa de Risco",
+            hole=0.4 # faz o buraco no meio
+        )
+        st.plotly_chart(fig_rosca, use_container_width=True)
+else: # se a DF estiver vazia, mostra isso
+    st.warning("Nenhum bairro encontrado com essa intensidade. Tente diminuir o filtro na barra lateral.")
 
 st.divider()
 
