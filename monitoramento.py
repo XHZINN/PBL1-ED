@@ -189,7 +189,7 @@ with graf_col1: # 1° gráfico: de Barras)
     # use_container_width=True é pra ocupar toda a largura da coluna (responsividade)
     #o px.bar só cria a tabela, mas é esse comando de cima que realmente mostra o gráfico
 
-with graf_col2: # 2° gráfico: de Torta 
+with graf_col2: # 2° gráfico: de Torta (oh nomezinho ruim, pizza sola)
  
     fig_rosca = px.pie(
         df, 
