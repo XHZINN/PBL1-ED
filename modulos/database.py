@@ -47,8 +47,38 @@ def backup():
 
         except Exception as e:
              print(f'Erro ao salvar novo backup semanal: {e}')
-    else:
-         print("Backup esta em dia meu nobre")
+             
+def dados_familia_calculo(familia):
+     conn = conexao_bd()
+     conn.row_factory = sqlite3.Row
+     cursor = conn.cursor()
+
+     cursor.execute('''
+        SELECT tipo_moradia, custo_moradia, renda_familiar, pessoas_familia 
+        FROM Familias 
+        WHERE uuid_familia = ? 
+        ''', (familia,))
+     
+     linha_familia = cursor.fetchone()
+
+     if not linha_familia:
+          conn.close()
+          return None
+     
+     info_familia = dict(linha_familia)
+     
+     cursor.execute('''
+        SELECT gestante, pcd, data_nasc
+        FROM Pessoas
+        WHERE uuid_familia = ?
+        ''', (familia,))
+     
+     membros = [dict(row) for row in cursor.fetchall()]
+
+     conn.close()
+
+     info_familia['membros'] = membros
+     return info_familia
 
 def buscar_data_backup():
      
@@ -178,6 +208,7 @@ def criar_table():
             renda_familiar REAL NOT NULL,
             pessoas_familia REAL,
             cpf_responsavel TEXT UNIQUE NOT NULL,
+            nivel_vulnerabilidade REAL,
             FOREIGN KEY (uuid_bairro) REFERENCES Bairros(uuid_bairro)
                )
         ''')

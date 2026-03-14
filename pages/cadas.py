@@ -1,7 +1,7 @@
 import streamlit as st
 from datetime import date, timedelta
 from modulos.validacao import  validar_cpf, validar_data, validar_nome, validar_tel
-from modulos.database import criar_table, salvar_Familia, nome_bairros, novo_bairro, backup
+from modulos.database import criar_table, salvar_Familia, nome_bairros, novo_bairro, backup, dados_familia_calculo
 
 st.set_page_config(page_title="Monitoramento SLZ", layout="wide")
 
