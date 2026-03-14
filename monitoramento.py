@@ -5,6 +5,7 @@ import json # arquivos json
 import folium # pra criar o mapa
 from folium.plugins import HeatMap
 from streamlit_folium import st_folium
+import plotly.express as px # biblio para os gráficos
 from modulos.database import pegar_totais, bairros_query
 
 # config da página (o titulozinho la em cima e o tamanho do layout)
@@ -163,6 +164,44 @@ with col2:
     st.metric(label="Total de Pessoas Residentes", value=int(totais[1]))
 
 st.divider()
+
+#=== GRÁFICOS ===
+
+st.write("### Análise Estatística por Bairro")
+# vamos usar a tática de dividir a página em colunas de novo 
+graf_col1, graf_col2 = st.columns(2)
+
+with graf_col1: # 1° gráfico: de Barras)
+    
+    fig_barras = px.bar( #guardamos na variável o gráfico de barras (a função px.bar)
+        df, # o primeiro argumento é a fonte dos dados 
+        x='bairro', # pega o bairro e usa no eixo x
+        y='intensidade', # pega a intensidade e usa no eixo y
+        title="Nível de Intensidade por Bairro", # título né
+        #esse aqui serve pra mostrar de forma diferente do BD, se tipo, no BD estivesse
+        #intensidade_risco_calcular ai ele mostraria o que tá dps dos 2 pontos
+        # {'Nome_Original': 'Nome_Para_Exibir'}
+        labels={'intensidade': 'Intensidade', 'bairro': 'Bairro'},
+        color='intensidade', # muda a cor com base na intensidade
+        color_continuous_scale='YlOrRd' # a mesma escala da tabela também
+    )
+    st.plotly_chart(fig_barras, use_container_width=True) 
+    # use_container_width=True é pra ocupar toda a largura da coluna (responsividade)
+    #o px.bar só cria a tabela, mas é esse comando de cima que realmente mostra o gráfico
+
+with graf_col2: # 2° gráfico: de Torta 
+ 
+    fig_rosca = px.pie(
+        df, 
+        values='intensidade', 
+        names='bairro', 
+        title="Distribuição Relativa de Risco",
+        hole=0.4 # faz o buraco no meio
+    )
+    st.plotly_chart(fig_rosca, use_container_width=True)
+
+st.divider()
+
 st.write("Dados lidos em tempo real do arquivo: `Banco_dados.db`")
 
 st.write("---")
