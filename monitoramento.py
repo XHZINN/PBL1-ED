@@ -11,13 +11,6 @@ from modulos.database import pegar_totais, bairros_query
 # config da página (o titulozinho la em cima e o tamanho do layout)
 st.set_page_config(page_title="Monitoramento SLZ", layout="wide")
 
-# #==== .JSON ====
-# # 1. abrir o arquivo em modo de leitura (r = read)
-# with open('bairros.json', 'r', encoding='utf-8') as arquivo:
-#     # 2. O json.load transforma o texto do arquivo em uma lista/dicionário Python
-#     dados_bairros = json.load(arquivo)
-#     # Criar um controle na barra lateral
-
 dados_bairros = bairros_query()
     
 # transforma a lista de dicionários em uma tabela do Pandas (DataFrame)
