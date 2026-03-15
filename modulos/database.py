@@ -5,7 +5,8 @@ from geopy import Nominatim
 from datetime import date, timedelta, datetime
 import shutil
 import os
-from modulos.validacao import limpar_somente_numeros, limpar
+from .validacao import limpar_somente_numeros, limpar
+from .calculos import calcular_indice_vulnerabilidade_familia, calcular_indice_vulnerabilidade_bairro
 
 def conexao_bd():
     return sqlite3.connect('Banco_dados.db')
@@ -167,7 +168,7 @@ def bairros_query():
      conn = conexao_bd()
      cursor = conn.cursor()
 
-     cursor.execute('SELECT nome_bairro, latitude, longitude FROM Bairros ORDER BY nome_bairro ASC')
+     cursor.execute('SELECT nome_bairro, latitude, longitude, nivel_vulnerabilidade FROM Bairros ORDER BY nome_bairro ASC')
      dados = cursor.fetchall()
 
      bairros = [{
@@ -175,7 +176,7 @@ def bairros_query():
           'bairro': linha[0],
           'lat': linha[1],
           'lon': linha[2],
-          'intensidade': 0.5
+          'intensidade': linha[3]
          }
         for linha in dados
      ]
@@ -193,7 +194,7 @@ def criar_table():
             nome_bairro TEXT UNIQUE NOT NULL,
             latitude REAL NOT NULL,
             longitude REAL NOT NULL,
-            zona TEXT
+            nivel_vulnerabilidade REAL 
                 )
         ''')
 
@@ -280,6 +281,61 @@ def salvar_Familia(membros, bairro_f, moradia_f, custo_f, renda_f, quantidade_f)
             st.error("Erro: Um dos CPFs já está cadastrado no sistema!")
     finally:
         conn.close()
+
+def atualizar_vulnerabilidades_familias():
+    conn = conexao_bd()
+    cursor = conn.cursor()
+    
+    # 1. Pega os dados brutos
+    cursor.execute("SELECT uuid_familia FROM Familias")
+    familias = cursor.fetchall()
+    
+    for f in familias:
+        # 2. Busca os dados completos da família
+        dados = dados_familia_calculo(f[0])
+        
+        # 3. Chama a função de cálculo que veio do outro arquivo
+        _, score = calcular_indice_vulnerabilidade_familia(dados)
+        
+        # 4. Salva o resultado
+        cursor.execute("UPDATE Familias SET nivel_vulnerabilidade = ? WHERE uuid_familia = ?", (score, f[0]))
+    
+    conn.commit()
+    conn.close()
+
+def atualizar_vulnerabilidade_bairro():
+     
+    conn = conexao_bd()
+    cursor = conn.cursor()
+
+    cursor.execute('SELECT uuid_bairro FROM Bairros')
+    bairros = cursor.fetchall()
+
+    media = 0
+
+    for b in bairros:
+          
+        u_bairro = b[0]
+
+        cursor.execute('''
+                       SELECT AVG(nivel_vulnerabilidade) 
+                       FROM Familias 
+                       WHERE uuid_bairro = ?
+                       ''', (u_bairro,))
+        resultado = cursor.fetchone()
+
+        media = round(resultado[0] if resultado[0] is not None else 0.0, 2)
+    
+        conn.execute('''
+                     UPDATE Bairros 
+                     SET nivel_vulnerabilidade = ? 
+                     WHERE uuid_bairro = ? 
+                     ''', (media, u_bairro))
+        
+        print(f"[*] Bairro {b[0]}: Média {media:.2f} atualizada.")
+    conn.commit()
+    conn.close
+    print("[+] Todos os bairros foram atualizados!")
     
 def pegar_totais():
 

@@ -1,7 +1,6 @@
 #==== IMPORTAÇÕES ====
 import streamlit as st # interface do site
 import pandas as pd # organizar os dados em tabelas(DataFrames)
-import json # arquivos json
 import folium # pra criar o mapa
 from folium.plugins import HeatMap
 from streamlit_folium import st_folium
@@ -20,7 +19,7 @@ df = pd.DataFrame(dados_bairros)
 #MT MASSA ESSA PARTE
 # criamos um controle na barra lateral
 st.sidebar.header("Filtros")
-nivel_minimo = st.sidebar.slider("Filtrar por Intensidade Mínima", 0.0, 1.0, 0.0)
+nivel_minimo = st.sidebar.slider("Filtrar por Intensidade Mínima", 0.0, 10.0, 0.0)
 # aqui a gente tá filtrando o DataFrame antes de criar o mapa e a tabela
 df = df[df['intensidade'] >= nivel_minimo]
 
@@ -52,11 +51,11 @@ HeatMap(
 
 # vamo fazer as cores do popup terem as cores da intensidade
 def pegar_cor(intensidade):
-    if intensidade >= 0.9:
+    if intensidade >= 9.0:
         return "#FF0000"
-    elif intensidade >= 0.7:
+    elif intensidade >= 7.0:
         return "#FFA500"
-    elif intensidade >= 0.5:
+    elif intensidade >= 5.0:
         return "#FFFB00"
     else:
         return "#00CCFF"
@@ -195,10 +194,7 @@ if not df.empty:
 else: # se a DF estiver vazia, mostra isso
     st.warning("Nenhum bairro encontrado com essa intensidade. Tente diminuir o filtro na barra lateral.")
 
-st.divider()
-
-st.write("Dados lidos em tempo real do arquivo: `Banco_dados.db`")
 
 st.write("---")
-st.caption("Última atualização dos dados: 22 de Fevereiro de 2026")
+st.caption("Última atualização dos dados: 15 de Março de 2026")
 st.caption("Fonte: Defesa Cívil (Simulação para fins acadêmicos)")

@@ -1,7 +1,7 @@
 import streamlit as st
 from datetime import date, timedelta
 from modulos.validacao import  validar_cpf, validar_data, validar_nome, validar_tel
-from modulos.database import criar_table, salvar_Familia, nome_bairros, novo_bairro, backup, dados_familia_calculo
+from modulos.database import criar_table, salvar_Familia, nome_bairros, novo_bairro, backup, atualizar_vulnerabilidades_familias
 
 st.set_page_config(page_title="Monitoramento SLZ", layout="wide")
 
@@ -10,6 +10,7 @@ st.write("")
 
 criar_table()
 backup()
+atualizar_vulnerabilidades_familias()
 
 def remover_membro(indice):
     st.session_state.membro.pop(indice) 
