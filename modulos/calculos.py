@@ -2,7 +2,7 @@ from datetime import date, datetime
 
 def calcular_idade(data_nasc):
     if not data_nasc:
-        return 0
+        return 30
     
     # Garante que data_nasc seja um objeto date para o cálculo
     if isinstance(data_nasc, str):
@@ -21,22 +21,24 @@ def calcular_idade(data_nasc):
 def calcular_indice_vulnerabilidade_familia(familia):
 
     if not familia or not familia['membros']:
-        return "N/A", 0.0
+        return  0.0, None
 
     membros = familia['membros']
+
+    uuid_bairro = familia['uuid_bairro']
     
     # gera a renda per capita da familia
     qtd_pessoas = familia['pessoas_familia'] if familia['pessoas_familia'] > 0 else 1
-    renda_per_capita = familia['renda_familiar'] / qtd_pessoas
+    renda_per_capita = familia['renda_familiar'] / qtd_pessoas if qtd_pessoas else 1
 
     # --- PESO RENDA SÃO LUÍS ---
     if renda_per_capita <= 218: 
         peso_renda = 4      # Extrema Pobreza
-    elif renda_per_capita <= 520:
+    elif renda_per_capita <= 625:
         peso_renda = 3      # Pobreza (Custo Cesta Básica SLZ)
-    elif renda_per_capita <= 706: 
+    elif renda_per_capita <= 811: 
         peso_renda = 2      # Baixa Renda (1/2 Salário Mínimo)
-    elif renda_per_capita <= 1412:
+    elif renda_per_capita <= 1621:
         peso_renda = 1.5    # Risco Moderado (1 Salário Mínimo)
     else:
         peso_renda = 1      # Vulnerabilidade Baixa
@@ -73,16 +75,4 @@ def calcular_indice_vulnerabilidade_familia(familia):
     # --- NORMALIZAÇÃO (0–10) ---
     indice_final = round(min(10, (indice_bruto / 11) * 10), 2)
 
-    return membros[0]['nome'], indice_final
-
-def calcular_indice_vulnerabilidade_bairro(dados_bairro):
-   
-    media = 0
-    nivel_vulnerabilidade_total = 0
-    
-    for i in dados_bairro:
-          nivel_vulnerabilidade_total += i
-
-    media = nivel_vulnerabilidade_total / len(dados_bairro)
-    
-    return media
+    return indice_final, uuid_bairro

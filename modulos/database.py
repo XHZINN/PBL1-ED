@@ -6,7 +6,7 @@ from datetime import date, timedelta, datetime
 import shutil
 import os
 from .validacao import limpar_somente_numeros, limpar
-from .calculos import calcular_indice_vulnerabilidade_familia, calcular_indice_vulnerabilidade_bairro
+from .calculos import calcular_indice_vulnerabilidade_familia
 
 def conexao_bd():
     return sqlite3.connect('Banco_dados.db')
@@ -55,7 +55,7 @@ def dados_familia_calculo(familia):
      cursor = conn.cursor()
 
      cursor.execute('''
-        SELECT uuid_familia, tipo_moradia, custo_moradia, renda_familiar, pessoas_familia 
+        SELECT uuid_bairro, uuid_familia, tipo_moradia, custo_moradia, renda_familiar, pessoas_familia 
         FROM Familias 
         WHERE uuid_familia = ? 
         ''', (familia,))
@@ -286,65 +286,90 @@ def salvar_Familia(membros, bairro_f, moradia_f, custo_f, renda_f, quantidade_f)
         conn.commit()
         st.success("Família e Membros salvos com sucesso")
 
+        atualizar_vulnerabilidades_familias(uuid_familia)
+
     except sqlite3.IntegrityError:
             st.error("Erro: Um dos CPFs já está cadastrado no sistema!")
     finally:
         conn.close()
 
-def atualizar_vulnerabilidades_familias():
+def atualizar_vulnerabilidades_familias(uuid_familia=None):
     conn = conexao_bd()
     cursor = conn.cursor()
     
-    # 1. Pega os dados brutos
-    cursor.execute("SELECT uuid_familia FROM Familias")
-    familias = cursor.fetchall()
+    # Caso 1: Processamento Individual (Rapido)
+    if uuid_familia:
+
+        dados = dados_familia_calculo(uuid_familia)
+
+        uuid_bairro = None
+
+        if dados:
+            score, uuid_bairro = calcular_indice_vulnerabilidade_familia(dados)
+            cursor.execute("UPDATE Familias SET nivel_vulnerabilidade = ? WHERE uuid_familia = ?", (score, uuid_familia))
+            conn.commit()
+            conn.close()
+            atualizar_vulnerabilidade_bairro(uuid_bairro)
+            return
+
     
-    for f in familias:
-        # 2. Busca os dados completos da família
+    # Caso 2: Processo em Massa para todas as familias (Geral)
+    cursor.execute("SELECT uuid_familia FROM Familias")
+    # 2. Salva os dados na variavel familia como uma tupla
+    todas_familia = cursor.fetchall()
+
+    for f in todas_familia:
+        # 3. Busca os dados completos da família
         dados = dados_familia_calculo(f[0])
         
-        # 3. Chama a função de cálculo que veio do outro arquivo
-        _, score = calcular_indice_vulnerabilidade_familia(dados)
-        
-        # 4. Salva o resultado
-        cursor.execute("UPDATE Familias SET nivel_vulnerabilidade = ? WHERE uuid_familia = ?", (score, f[0]))
-    
+        if dados:
+            # 4. Chama a função de cálculo de vulnerabilidade
+            score, _= calcular_indice_vulnerabilidade_familia(dados)
+            
+            # 5. Salva o resultado
+            cursor.execute("UPDATE Familias SET nivel_vulnerabilidade = ? WHERE uuid_familia = ?", (score, f[0]))
+
     conn.commit()
     conn.close()
 
-def atualizar_vulnerabilidade_bairro():
+    atualizar_vulnerabilidade_bairro(None)
+
+def atualizar_vulnerabilidade_bairro(uuid_bairro=None):
      
     conn = conexao_bd()
     cursor = conn.cursor()
 
-    cursor.execute('SELECT uuid_bairro FROM Bairros')
-    bairros = cursor.fetchall()
+    if uuid_bairro:
+        lista_bairro = [(uuid_bairro,)]
 
-    media = 0
+    else:
+        # 1. Pega os dados brutos de todos os bairros
+        cursor.execute('SELECT uuid_bairro FROM Bairros')
 
-    for b in bairros:
-          
-        u_bairro = b[0]
+        # 2. Salva os dados na variavel bairros
+        lista_bairro = cursor.fetchall()
+
+    for b in lista_bairro:
+        
+        uidd_bairro = b[0]
 
         cursor.execute('''
-                       SELECT AVG(nivel_vulnerabilidade) 
-                       FROM Familias 
-                       WHERE uuid_bairro = ?
-                       ''', (u_bairro,))
+                    SELECT AVG(nivel_vulnerabilidade) 
+                    FROM Familias 
+                    WHERE uuid_bairro = ?
+                    ''', (uidd_bairro,))
         resultado = cursor.fetchone()
 
         media = round(resultado[0] if resultado[0] is not None else 0.0, 2)
-    
-        conn.execute('''
-                     UPDATE Bairros 
-                     SET nivel_vulnerabilidade = ? 
-                     WHERE uuid_bairro = ? 
-                     ''', (media, u_bairro))
-        
-        print(f"[*] Bairro {b[0]}: Média {media:.2f} atualizada.")
+
+        cursor.execute('''
+                    UPDATE Bairros 
+                    SET nivel_vulnerabilidade = ? 
+                    WHERE uuid_bairro = ? 
+                    ''', (media, uidd_bairro))
+
     conn.commit()
     conn.close
-    print("[+] Todos os bairros foram atualizados!")
     
 def pegar_totais():
 
