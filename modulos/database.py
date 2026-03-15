@@ -184,6 +184,15 @@ def bairros_query():
      conn.close()
      return bairros
   
+def query_relatorio():
+     conn = conexao_bd()
+     cursor = conn.cursor()
+
+     cursor.execute('SELECT nome_bairro, nivel_vulnerabilidade FROM Bairros')
+     bairros = cursor.fetchall
+
+     cursor.execute('SELECT ')
+
 def criar_table():
         conn = conexao_bd()
         trabaiador = conn.cursor()

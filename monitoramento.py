@@ -22,7 +22,6 @@ st.sidebar.header("Filtros")
 nivel_minimo = st.sidebar.slider("Filtrar por Intensidade Mínima", 0.0, 10.0, 0.0)
 # aqui a gente tá filtrando o DataFrame antes de criar o mapa e a tabela
 df = df[df['intensidade'] >= nivel_minimo]
-
 #==== CONFIGURAÇÃO DO MAPA ====
 
 # centralizar o mapa em São Luís (latitude e longitude médias)
