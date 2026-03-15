@@ -6,6 +6,8 @@ from folium.plugins import HeatMap
 from streamlit_folium import st_folium
 import plotly.express as px # biblio para os gráficos
 from modulos.database import pegar_totais, bairros_query
+from modulos.relatorio import executar_geracao_relatorio
+import os
 
 # config da página (o titulozinho la em cima e o tamanho do layout)
 st.set_page_config(page_title="Monitoramento SLZ", layout="wide")
@@ -22,6 +24,37 @@ st.sidebar.header("Filtros")
 nivel_minimo = st.sidebar.slider("Filtrar por Intensidade Mínima", 0.0, 10.0, 0.0)
 # aqui a gente tá filtrando o DataFrame antes de criar o mapa e a tabela
 df = df[df['intensidade'] >= nivel_minimo]
+# ==== DOWNLOAD DO RELATÓRIO ====
+st.sidebar.divider()
+st.sidebar.header("Relatório")
+
+nome_pdf = "Relatorio_Socioeconomico_Slz.pdf"
+
+imagens_temporarias = ['panorama_geral.png', 'top_criticos.png']
+
+# o botão pra gerar
+if st.sidebar.button("📄 Gerar Relatório PDF"):
+    with st.sidebar.status("Processando...", expanded=False):
+        executar_geracao_relatorio()
+        st.sidebar.success("Relatório pronto!")
+if os.path.exists(nome_pdf):
+    with open(nome_pdf, "rb") as f:
+        pdf_byte_data = f.read()
+    try:
+        os.remove(nome_pdf)
+        for img in imagens_temporarias:
+            if os.path.exists(img):
+                os.remove(img)
+    except Exception as e:
+        print(f"Erro ao limpar arquivos: {e}")
+    st.sidebar.download_button(
+        label="📥 Baixar relatório PDF",
+        data=pdf_byte_data,
+        file_name="Relatorio_Vulnerabilidade_SLZ.pdf",
+        mime="application/pdf"
+    )
+else:
+    st.sidebar.info("Gere o relatório para habilitar o download.")
 #==== CONFIGURAÇÃO DO MAPA ====
 
 # centralizar o mapa em São Luís (latitude e longitude médias)
