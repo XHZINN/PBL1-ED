@@ -4,6 +4,5 @@ streamlit-folium
 pandas
 matplotlib
 geopy
-os
 seaborn
 fpdf
