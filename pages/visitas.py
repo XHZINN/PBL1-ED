@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import time
 from datetime import date, timedelta
 from modulos.database import buscar_responsavel_por_cpf_ou_nome, registrar_visita, buscar_membros_familia
 from modulos.validacao import validar_cpf, validar_data, validar_nome, validar_tel
@@ -17,7 +18,7 @@ def adicionar_novo_membro():
 
 st.title("📍 Acompanhamento e Visitas Técnicas")
 
-# 1. BUSCA DE FAMÍLIA (Mantido conforme seu código)
+# 1. BUSCA DE FAMÍLIA
 with st.expander("🔍 Localizar Família", expanded=True):
     busca = st.text_input("Busca por CPF do Responsável ou Nome")
     if busca:
@@ -36,10 +37,8 @@ with st.expander("🔍 Localizar Família", expanded=True):
             if escolha_uuid:
                 if 'familia_visita' in st.session_state:
                     if st.session_state.familia_visita['uuid_familia'] != escolha_uuid:
-                        # Limpamos os membros antigos para forçar uma nova busca no banco
                         if 'membros_edicao' in st.session_state:
                             del st.session_state.membros_edicao
-                # ----------------------------
 
                 familia_selecionada = df_busca[df_busca['uuid_familia'] == escolha_uuid].iloc[0].to_dict()
                 st.session_state.familia_visita = familia_selecionada
@@ -60,18 +59,14 @@ if 'familia_visita' in st.session_state:
     
     for i, membro in enumerate(st.session_state.membros_edicao):
         with st.container(border=True):
-            # Se for membro novo (sem nome no banco), habilitamos validações de Nome, CPF e Data
             if membro.get('nome') == "":
                 st.write(f"**Novo Membro {i+1}**")
-                
-                m_nome = st.text_input("Nome Completo", key=f"nome_novo_{i}", 
-                                      on_change=validar_nome, args=(i, True)) # True indica modo edição/visita se sua função suportar
+                m_nome = st.text_input("Nome Completo", key=f"nome_novo_{i}", on_change=validar_nome, args=(i, True))
                 if membro.get('erro_nome'): st.error(membro['erro_nome'])
 
                 col_cpf, col_dn = st.columns(2)
                 with col_cpf:
-                    m_cpf = st.text_input("CPF", key=f"cpf_novo_{i}", max_chars=11, 
-                                         on_change=validar_cpf, args=(i, True))
+                    m_cpf = st.text_input("CPF", key=f"cpf_novo_{i}", max_chars=11, on_change=validar_cpf, args=(i, True))
                     if membro.get('erro_cpf'): st.error(membro['erro_cpf'])
                 
                 with col_dn:
@@ -80,7 +75,6 @@ if 'familia_visita' in st.session_state:
                                                on_change=validar_data, args=(i, True), key=f'data_nasc_{i}')
                     if membro.get('erro_data'): st.error(membro['erro_data'])
             else:
-                # Membro já existente: Nome e CPF fixos para segurança
                 st.write(f"**{membro['nome']}**")
                 m_nome = membro['nome']
                 m_cpf = membro['cpf']
@@ -91,7 +85,6 @@ if 'familia_visita' in st.session_state:
                 m_renda = st.number_input(f"Renda (R$)", value=float(membro['renda']), key=f"renda_{i}")
             with c2:
                 m_sexo = membro['sexo'] if membro.get('nome') != "" else st.selectbox("Sexo", ["Masculino", "Feminino"], key=f"sexo_{i}")
-                
                 if m_sexo != "Masculino":
                     idx_gest = 1 if membro['gestante'] == 1 else 0
                     m_gest = st.selectbox("Gestante?", ["Não", "Sim"], index=idx_gest, key=f"gest_{i}")
@@ -113,7 +106,6 @@ if 'familia_visita' in st.session_state:
     st.button("➕ Adicionar outro membro a esta família", on_click=adicionar_novo_membro)
     st.divider()
 
-    # --- PARTE 2: DADOS GERAIS ---
     st.write("### 🏠 Dados Gerais do Atendimento")
     col_gen1, col_gen2 = st.columns(2)
     with col_gen1:
@@ -122,19 +114,38 @@ if 'familia_visita' in st.session_state:
     with col_gen2:
         observacoes_gerais = st.text_area("Observações da Visita", placeholder="Descreva aqui...")
 
-    if st.button("💾 Salvar Visita e Atualizar Tudo", type="primary"):
-        # Verificação final de erros antes de salvar
+    if st.button("💾 Salvar Visita e Atualizar Cadastro", type="primary"):
         tem_erros = any(m.get('erro_cpf') or m.get('erro_nome') or m.get('erro_data') for m in novos_dados_membros)
         
         if tem_erros:
-            st.error("Por favor, corrija os erros nos dados dos membros antes de salvar.")
+            st.error("⚠️ Verifique os erros nos membros antes de salvar.")
         else:
-            renda_total = sum(m['renda'] for m in novos_dados_membros)
-            sucesso = registrar_visita(f['uuid_familia'], novos_dados_membros, renda_total, recebeu_auxilio, observacoes_gerais)
-            
-            if sucesso:
-                st.success("Tudo atualizado!")
-                st.balloons()
-                for key in ['membros_edicao', 'familia_visita']:
-                    if key in st.session_state: del st.session_state[key]
-                st.rerun()
+            with st.spinner("Finalizando registro e recalculando índices..."):
+                renda_total = sum(m['renda'] for m in novos_dados_membros)
+                sucesso = registrar_visita(
+                    f['uuid_familia'], 
+                    novos_dados_membros, 
+                    renda_total, 
+                    recebeu_auxilio, 
+                    observacoes_gerais
+                )
+                
+                if sucesso:
+                    msg_sucesso = st.empty() # Espaço reservado para a mensagem
+                    with msg_sucesso.container():
+                        st.success("✅ Visita registrada e vulnerabilidades atualizadas!")
+                        st.info("Sincronização concluída. Redirecionando para o Monitoramento...")
+                    
+                    # Limpeza de sessão
+                    chaves_para_limpar = ['familia_visita', 'membros_edicao']
+                    for key in chaves_para_limpar:
+                        if key in st.session_state:
+                            del st.session_state[key]
+                    
+                    # Pausa para o usuário ler a mensagem
+                    time.sleep(3)
+                    
+                    # Redirecionamento final
+                    st.switch_page("monitoramento.py")
+                else:
+                    st.error("❌ Falha na conexão com o banco de dados.")

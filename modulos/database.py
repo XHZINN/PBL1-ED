@@ -49,37 +49,58 @@ def backup():
         except Exception as e:
              print(f'Erro ao salvar novo backup semanal: {e}')
              
-def dados_familia_calculo(familia):
-     conn = conexao_bd()
-     conn.row_factory = sqlite3.Row
-     cursor = conn.cursor()
+def dados_familia_calculo(familia, cursor=None):
+    # 1. Gerenciamento de Conexão Local ou Externa
+    conn_local = None
+    if cursor is None:
+        conn_local = conexao_bd()
+        conn_local.row_factory = sqlite3.Row
+        cur = conn_local.cursor()
+    else:
+        cur = cursor
 
-     cursor.execute('''
-        SELECT uuid_bairro, uuid_familia, tipo_moradia, custo_moradia, renda_familiar, pessoas_familia 
-        FROM Familias 
-        WHERE uuid_familia = ? 
+    try:
+        # 2. Busca dados da Família
+        cur.execute('''
+            SELECT uuid_bairro, uuid_familia, tipo_moradia, custo_moradia, renda_familiar, pessoas_familia 
+            FROM Familias 
+            WHERE uuid_familia = ? 
         ''', (familia,))
-     
-     linha_familia = cursor.fetchone()
+        
+        linha_familia = cur.fetchone()
 
-     if not linha_familia:
-          conn.close()
-          return None
-     
-     info_familia = dict(linha_familia)
-     
-     cursor.execute('''
-        SELECT nome, gestante, pcd, data_nasc, renda
-        FROM Pessoas
-        WHERE uuid_familia = ?
+        if not linha_familia:
+            return None
+        
+        if isinstance(linha_familia, sqlite3.Row):
+            info_familia = dict(linha_familia)
+        else:
+            
+            colunas = [desc[0] for desc in cur.description]
+            info_familia = dict(zip(colunas, linha_familia))
+        
+        cur.execute('''
+            SELECT nome, gestante, pcd, data_nasc, renda
+            FROM Pessoas
+            WHERE uuid_familia = ?
         ''', (familia,))
-     
-     membros = [dict(row) for row in cursor.fetchall()]
+        
+        resultados_membros = cur.fetchall()
+        
+        membros = []
+        for row in resultados_membros:
+            if isinstance(row, sqlite3.Row):
+                membros.append(dict(row))
+            else:
+                colunas_m = [desc[0] for desc in cur.description]
+                membros.append(dict(zip(colunas_m, row)))
 
-     conn.close()
+        info_familia['membros'] = membros
+        return info_familia
 
-     info_familia['membros'] = membros
-     return info_familia
+    finally:
+        if conn_local:
+            conn_local.close()
 
 def buscar_data_backup():
      
@@ -218,8 +239,9 @@ def criar_table():
             renda_familiar REAL NOT NULL,
             pessoas_familia REAL,
             cpf_responsavel TEXT UNIQUE NOT NULL,
-            beneficio INTEGER NOT NULL,
+            auxilio INTEGER NOT NULL,
             nivel_vulnerabilidade REAL,
+            ultima_visita DATE NOT NULL,
             FOREIGN KEY (uuid_bairro) REFERENCES Bairros(uuid_bairro)
                )
         ''')
@@ -267,7 +289,7 @@ def criar_table():
         conn.commit()
         conn.close()
 
-def salvar_Familia(membros, bairro_f, moradia_f, custo_f, renda_f, quantidade_f, beneficio):
+def salvar_Familia(membros, bairro_f, moradia_f, custo_f, renda_f, quantidade_f, auxilio):
 
     uuid_familia = str(uuid.uuid4())
     conn = conexao_bd()
@@ -285,9 +307,9 @@ def salvar_Familia(membros, bairro_f, moradia_f, custo_f, renda_f, quantidade_f,
 
         pen.execute('''
 
-            INSERT INTO Familias(uuid_familia, uuid_bairro, tipo_moradia, custo_moradia, renda_familiar, pessoas_familia, cpf_responsavel, beneficio)
+            INSERT INTO Familias(uuid_familia, uuid_bairro, tipo_moradia, custo_moradia, renda_familiar, pessoas_familia, cpf_responsavel, auxilio)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (uuid_familia, bairro_id, moradia_f, custo_f, renda_f, quantidade_f, st.session_state.membro[0]['cpf'], beneficio))
+            ''', (uuid_familia, bairro_id, moradia_f, custo_f, renda_f, quantidade_f, st.session_state.membro[0]['cpf'], auxilio))
         for m in membros:
             uuid_pessoa = str(uuid.uuid4())
             pen.execute('''
@@ -305,46 +327,57 @@ def salvar_Familia(membros, bairro_f, moradia_f, custo_f, renda_f, quantidade_f,
     finally:
         conn.close()
 
-def atualizar_vulnerabilidades_familias(uuid_familia=None):
-    conn = conexao_bd()
-    cursor = conn.cursor()
+def atualizar_vulnerabilidades_familias(uuid_familia=None, cursor=None):
     
-    # Caso 1: Processamento Individual (Rapido)
-    if uuid_familia:
+    if cursor is None:
+        conn = conexao_bd()
+        cursor = conn.cursor()
+    else:
+        cur = cursor
+    
+    try:
+        # Caso 1: Processamento Individual (Rapido)
+        if uuid_familia:
+            dados = dados_familia_calculo(uuid_familia, cursor=cur)
+            
+            uuid_bairro = None
 
-        dados = dados_familia_calculo(uuid_familia)
+            if dados:
+                score, uuid_bairro = calcular_indice_vulnerabilidade_familia(dados)
+                cur.execute("UPDATE Familias SET nivel_vulnerabilidade = ? WHERE uuid_familia = ?", (score, uuid_familia))
 
-        uuid_bairro = None
+                if cursor is None:
+                    conn.commit()   
+                    conn.close()
+                    atualizar_vulnerabilidade_bairro(uuid_bairro)
+                return
 
-        if dados:
-            score, uuid_bairro = calcular_indice_vulnerabilidade_familia(dados)
-            cursor.execute("UPDATE Familias SET nivel_vulnerabilidade = ? WHERE uuid_familia = ?", (score, uuid_familia))
+        
+        # Caso 2: Processo em Massa para todas as familias (Geral)
+        cur.execute("SELECT uuid_familia FROM Familias")
+        # Salva os dados na variavel familia como uma tupla
+        todas_familia = cur.fetchall()
+
+        for f in todas_familia:
+            # 3. Busca os dados completos da família
+            dados = dados_familia_calculo(f[0])
+            
+            if dados:
+                score, _= calcular_indice_vulnerabilidade_familia(dados)
+                
+                # 4. Salva o resultado
+                cur.execute("UPDATE Familias SET nivel_vulnerabilidade = ? WHERE uuid_familia = ?", (score, f[0]))
+        if cursor is None:
             conn.commit()
             conn.close()
-            atualizar_vulnerabilidade_bairro(uuid_bairro)
-            return
+            atualizar_vulnerabilidade_bairro(None)
 
-    
-    # Caso 2: Processo em Massa para todas as familias (Geral)
-    cursor.execute("SELECT uuid_familia FROM Familias")
-    # 2. Salva os dados na variavel familia como uma tupla
-    todas_familia = cursor.fetchall()
-
-    for f in todas_familia:
-        # 3. Busca os dados completos da família
-        dados = dados_familia_calculo(f[0])
-        
-        if dados:
-            # 4. Chama a função de cálculo de vulnerabilidade
-            score, _= calcular_indice_vulnerabilidade_familia(dados)
-            
-            # 5. Salva o resultado
-            cursor.execute("UPDATE Familias SET nivel_vulnerabilidade = ? WHERE uuid_familia = ?", (score, f[0]))
-
-    conn.commit()
-    conn.close()
-
-    atualizar_vulnerabilidade_bairro(None)
+    except Exception as e:
+        # Se deu erro e a conexão é local, desfaz
+        if cursor is None:
+            conn.rollback()
+            conn.close()
+        raise e # Rebola o erro para o registrar_visita saber que falhou
 
 def atualizar_vulnerabilidade_bairro(uuid_bairro=None):
      
@@ -418,18 +451,18 @@ def registrar_visita(uuid_familia, lista_membros, renda_total, recebeu_auxilio, 
         # 2. ATUALIZAR A FAMÍLIA (Dados Agregados)
         cursor.execute('''
             UPDATE Familias 
-            SET renda_familiar = ?, ultima_visita = ?
+            SET renda_familiar = ?, ultima_visita = ?, auxilio =?
             WHERE uuid_familia = ?
-        ''', (renda_total, data_formatada, uuid_familia))
+        ''', (renda_total, data_formatada, recebeu_auxilio, uuid_familia))
 
-        atualizar_vulnerabilidades_familias(uuid_familia)
+        atualizar_vulnerabilidades_familias(uuid_familia, cursor=cursor)
 
         # 3. INSERIR NO HISTÓRICO DE VISITAS (Snapshot imutável)
         # Usamos o timestamp completo para o histórico ser preciso
         cursor.execute('''
             INSERT INTO Visitas (
                 uuid_visita, uuid_familia, data_visita, 
-                recebeu_auxilio, renda_no_momento, observacoes
+                auxilio, renda_no_momento, observacao
             ) VALUES (LOWER(HEX(RANDOMBLOB(16))), ?, ?, ?, ?, ?)
         ''', (uuid_familia, timestamp, recebeu_auxilio, renda_total, obs))
 
