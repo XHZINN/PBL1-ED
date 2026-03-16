@@ -172,27 +172,33 @@ for i, m in enumerate(st.session_state.membro):
     
 
     if i == 0:
+
+        bairro_invalido = False
         k_select = f'bairro_{i}_{st.session_state.form_id}'
         k_input = f'input_{i}_{st.session_state.form_id}'
+
+        selecao = st.session_state.get(k_select)
+        valor_input = st.session_state.get(k_input)
+
+        if selecao == "Outro":
+            if not valor_input:
+                bairro_invalido = True
+            elif m.get('bairro') == "":
+                bairro_invalido = True
+
         k_data = f'data_nasc_{i}_{st.session_state.form_id}'
         k_tel = f'telefone_{i}_{st.session_state.form_id}'
         
-
-        bairro_void = False
         date_res = False
         tel_res = False
 
-        if st.session_state.get(k_select) == "Outro":
-            if not st.session_state.get(k_input):
-                bairro_void = True
-        
         if st.session_state.get(k_data) == date.today():
             date_res = True
 
         if st.session_state.get(k_tel) == "":
             tel_res = True
 
-        dict_erros['bairro'] = bairro_void 
+        dict_erros['Bairro'] = bairro_invalido
         dict_erros['Data Nascimento'] = dict_erros['Data Nascimento'] or date_res
         dict_erros['Telefone'] = dict_erros['Telefone'] or tel_res
 
