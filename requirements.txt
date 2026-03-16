@@ -6,3 +6,4 @@ matplotlib
 geopy
 seaborn
 fpdf
+plotly
