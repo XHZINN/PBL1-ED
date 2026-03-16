@@ -17,7 +17,7 @@ def remover_membro(indice):
 def reset_form():
     st.session_state.membro = [{
         "nome": "", "erro_nome":"", "cpf": "", "erro_cpf": "", 
-        "sexo": "Masculino", "gestante": 0, "pcd": 0, "bairro": '', 
+        "sexo": "Masculino", "gestante": 0, "pcd": 0, "beneficio": 0, "bairro": '', 
         'tipo_moradia': "Casa Propria ", 'custo_moradia': 0.0, 'renda': 0.0, 
         "erro_renda": "", 'data_nasc': None, 'erro_data': "", 
         "telefone": "", "erro_tel": ""
@@ -38,7 +38,7 @@ def adicionar_membros():
 
     st.session_state.membro.append({
         "nome": "", "erro_nome":"", "cpf": "", "erro_cpf": "", 
-        "sexo": "Masculino", "gestante": 0, "pcd": 0, "bairro": '', 
+        "sexo": "Masculino", "gestante": 0, "pcd": 0, "beneficio": 0, "bairro": '', 
         'tipo_moradia': "", 'custo_moradia': 0.0, 'renda': 0.0, 
         "erro_renda": "", 'data_nasc': None, 'erro_data': "",
         "telefone": "", "erro_tel": ""
@@ -90,11 +90,33 @@ def form(i, membro, bairros):
                     membro['tipo_moradia'] = st.selectbox("Tipo de moradia", options=opcoes_moradia, key=f'tipo_moradia_{i}_{st.session_state.form_id}')
                 with c3:
                     membro['custo_moradia'] = st.number_input("Custo de Moradia", step=50.0, min_value=0.0, key=f'custo_moradia_{i}_{st.session_state.form_id}')
-
-            membro['cpf'] = st.text_input(f"CPF", placeholder="00000000000", max_chars=11, key=f'cpf_{i}_{st.session_state.form_id}', on_change=validar_cpf, args=(i,))
-            if membro.get('erro_cpf'):
-                st.error(membro['erro_cpf'])
             
+            if i == 0:
+                c_cpf, c_ben = st.columns([0.6, 0.4]) # Proporção ajustada
+            else:
+                c_cpf, c_vazia = st.columns([1.0, 0.01]) # CPF ocupa quase tudo
+
+            with c_cpf:
+                membro['cpf'] = st.text_input(
+                    f"CPF", 
+                    placeholder="00000000000", 
+                    max_chars=11, 
+                    key=f'cpf_{i}_{st.session_state.form_id}', 
+                    on_change=validar_cpf, 
+                    args=(i,)
+                )
+                if membro.get('erro_cpf'):
+                    st.error(membro['erro_cpf'])
+
+            if i == 0:
+                with c_ben:
+                    ben_select = st.selectbox(
+                        "Recebe Benefício", 
+                        options=["Sim", "Não"], 
+                        key=f'beneficio_{i}_{st.session_state.form_id}'
+                    )
+                    membro['beneficio'] = 1 if ben_select == "Sim" else 0
+
             c4, c5 = st.columns(2)
             with c4:
                 membro['renda'] = st.number_input(f"Renda Individual", min_value=0.0, key=f'renda_{i}_{st.session_state.form_id}')
@@ -129,7 +151,7 @@ if 'membro' not in st.session_state:
     st.session_state.membro = []
     st.session_state.membro.append({
         "nome": "", "erro_nome":"", "cpf": "", "erro_cpf": "", 
-        "sexo": "Masculino", "gestante": 0, "pcd": 0, "bairro": '', 
+        "sexo": "Masculino", "gestante": 0, "pcd": 0, "beneficio": 0, "bairro": '', 
         'tipo_moradia': "", 'custo_moradia': 0.0, 'renda': 0.0, 
         "erro_renda": "", 'data_nasc': None, 'erro_data': "", 
         "telefone": "", "erro_tel": ""
@@ -228,6 +250,7 @@ if finalizar:
         bairro_f = st.session_state.membro[0]['bairro'].strip()
         moradia_f = st.session_state.membro[0]["tipo_moradia"]
         custo_f = st.session_state.membro[0]["custo_moradia"]
+        beneficio_f = st.session_state.membro[0]['beneficio']
         renda_f = sum([m['renda'] for m in st.session_state.membro])
         quantidade_f = len(st.session_state.membro)
         cpf_responsavel = st.session_state.membro[0]['cpf']
@@ -235,7 +258,7 @@ if finalizar:
         st.session_state.banco_familias[cpf_responsavel] = dados_familia
 
         try:
-            salvar_Familia(dados_familia, bairro_f, moradia_f, custo_f, renda_f, quantidade_f)
+            salvar_Familia(dados_familia, bairro_f, moradia_f, custo_f, renda_f, quantidade_f, beneficio_f)
             st.button("Cadastrar nova família", on_click=reset_form)
         except Exception as e:
             st.error(f"Erro ao salvar no banco: {e}")

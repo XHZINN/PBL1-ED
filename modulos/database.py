@@ -218,6 +218,7 @@ def criar_table():
             renda_familiar REAL NOT NULL,
             pessoas_familia REAL,
             cpf_responsavel TEXT UNIQUE NOT NULL,
+            beneficio INTEGER NOT NULL,
             nivel_vulnerabilidade REAL,
             FOREIGN KEY (uuid_bairro) REFERENCES Bairros(uuid_bairro)
                )
@@ -249,13 +250,24 @@ def criar_table():
             tipo TEXT              
                 )
             ''')
+        trabaiador.execute('''
+        CREATE TABLE IF NOT EXISTS Visitas(
+            uuid_visita TEXT PRIMARY KEY NOT NULL,
+            uuid_familia TEXT NOT NULL,
+            data_visita DATE NOT NULL,
+            auxilio INTEGER NOT NULL,
+            renda_no_momento REAL,
+            nivel_vulnerabilidade REAL,
+            FOREIGN KEY (uuid_familia) REFERENCES Familias(uuid_familia)
+                           )
+            ''')
 
         
 
         conn.commit()
         conn.close()
 
-def salvar_Familia(membros, bairro_f, moradia_f, custo_f, renda_f, quantidade_f):
+def salvar_Familia(membros, bairro_f, moradia_f, custo_f, renda_f, quantidade_f, beneficio):
 
     uuid_familia = str(uuid.uuid4())
     conn = conexao_bd()
@@ -273,9 +285,9 @@ def salvar_Familia(membros, bairro_f, moradia_f, custo_f, renda_f, quantidade_f)
 
         pen.execute('''
 
-            INSERT INTO Familias(uuid_familia, uuid_bairro, tipo_moradia, custo_moradia, renda_familiar, pessoas_familia, cpf_responsavel)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (uuid_familia, bairro_id, moradia_f, custo_f, renda_f, quantidade_f, st.session_state.membro[0]['cpf']))
+            INSERT INTO Familias(uuid_familia, uuid_bairro, tipo_moradia, custo_moradia, renda_familiar, pessoas_familia, cpf_responsavel, beneficio)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (uuid_familia, bairro_id, moradia_f, custo_f, renda_f, quantidade_f, st.session_state.membro[0]['cpf'], beneficio))
         for m in membros:
             uuid_pessoa = str(uuid.uuid4())
             pen.execute('''
@@ -385,3 +397,87 @@ def pegar_totais():
     
     conn.close()
     return total_familias, total_pessoas
+
+def registrar_visita(uuid_familia, lista_membros, renda_total, recebeu_auxilio, obs):
+    conn = conexao_bd()
+    cursor = conn.cursor()
+    
+    agora = datetime.now()
+    data_formatada = agora.strftime('%Y-%m-%d')
+    timestamp = agora.strftime('%Y-%m-%d %H:%M:%S')
+    
+    try:
+        # 1. ATUALIZAR CADA MEMBRO (Indivíduos)
+        for m in lista_membros:
+            cursor.execute('''
+                UPDATE Pessoas 
+                SET renda = ?, gestante = ?, pcd = ?
+                WHERE cpf = ? AND uuid_familia = ?
+            ''', (m['renda'], m['gestante'], m['pcd'], m['cpf'], uuid_familia))
+
+        # 2. ATUALIZAR A FAMÍLIA (Dados Agregados)
+        cursor.execute('''
+            UPDATE Familias 
+            SET renda_familiar = ?, ultima_visita = ?
+            WHERE uuid_familia = ?
+        ''', (renda_total, data_formatada, uuid_familia))
+
+        atualizar_vulnerabilidades_familias(uuid_familia)
+
+        # 3. INSERIR NO HISTÓRICO DE VISITAS (Snapshot imutável)
+        # Usamos o timestamp completo para o histórico ser preciso
+        cursor.execute('''
+            INSERT INTO Visitas (
+                uuid_visita, uuid_familia, data_visita, 
+                recebeu_auxilio, renda_no_momento, observacoes
+            ) VALUES (LOWER(HEX(RANDOMBLOB(16))), ?, ?, ?, ?, ?)
+        ''', (uuid_familia, timestamp, recebeu_auxilio, renda_total, obs))
+
+        conn.commit()
+        return True
+    except Exception as e:
+        conn.rollback()
+        print(f"Erro na transação: {e}")
+        return False
+    finally:
+        conn.close()
+
+def buscar_responsavel_por_cpf_ou_nome(termo_busca):
+    """Busca o responsável pelo CPF ou Nome para iniciar uma visita."""
+    conn = conexao_bd()
+    conn.row_factory = sqlite3.Row 
+    cursor = conn.cursor()
+    
+    # Ajustado: Filtramos pessoas que possuem o CPF igual ao cpf_responsavel da familia
+    query = """
+        SELECT 
+            f.uuid_familia, 
+            p.nome, 
+            p.cpf,
+            f.renda_familiar, 
+            b.nome_bairro,
+            f.cpf_responsavel
+        FROM Familias f
+        JOIN Pessoas p ON f.cpf_responsavel = p.cpf
+        JOIN Bairros b ON f.uuid_bairro = b.uuid_bairro
+        WHERE (p.nome LIKE ? OR p.cpf LIKE ?)
+    """
+    
+    params = (f'%{termo_busca}%', f'%{termo_busca}%')
+    cursor.execute(query, params)
+    resultados = cursor.fetchall()
+    conn.close()
+    
+    return [dict(row) for row in resultados]
+
+def buscar_membros_familia(uuid_familia):
+    conn = conexao_bd()
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT * FROM Pessoas WHERE uuid_familia = ?", (uuid_familia,))
+    membros = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return membros
+
+
