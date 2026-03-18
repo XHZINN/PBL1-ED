@@ -1,151 +1,64 @@
 import streamlit as st
-import pandas as pd
-import time
-from datetime import date, timedelta
-from modulos.database import buscar_responsavel_por_cpf_ou_nome, registrar_visita, buscar_membros_familia
-from modulos.validacao import validar_cpf, validar_data, validar_nome, validar_tel
-
-def adicionar_novo_membro():
-    if 'membros_edicao' in st.session_state:
-        novo = {
-            "nome": "", "cpf": "", "sexo": "Masculino", 
-            "gestante": 0, "pcd": 0, "renda": 0.0, 
-            "data_nasc": date.today(), "telefone": "",
-            "uuid_familia": st.session_state.familia_visita['uuid_familia'],
-            "erro_cpf": None, "erro_data": None, "erro_nome": None
-        }
-        st.session_state.membros_edicao.append(novo)
+from modulos.database import achar_responsavel, achar_familia
+from modulos.validacao import validar_tel
 
 st.title("📍 Acompanhamento e Visitas Técnicas")
 
-# 1. BUSCA DE FAMÍLIA
-with st.expander("🔍 Localizar Família", expanded=True):
-    busca = st.text_input("Busca por CPF do Responsável ou Nome")
+with st.container(border= True):
+
+    st.write("Buscar familia")
+    busca = st.text_input("Nome ou CPF do Responsavel", placeholder="Nome ou CPF", key= "busca_key")
+
     if busca:
-        dados = buscar_responsavel_por_cpf_ou_nome(busca)
-        if dados:
-            df_busca = pd.DataFrame(dados)
-            def formatar_exibicao(uuid_familia):
-                linha = df_busca[df_busca['uuid_familia'] == uuid_familia].iloc[0]
-                return f"{linha['nome']} - CPF: {linha['cpf']}"
+        resultado = achar_responsavel(busca)
 
-            escolha_uuid = st.selectbox(
-                "Selecione a família encontrada:",
-                options=df_busca['uuid_familia'].tolist(),
-                format_func=formatar_exibicao
-            )
-            if escolha_uuid:
-                if 'familia_visita' in st.session_state:
-                    if st.session_state.familia_visita['uuid_familia'] != escolha_uuid:
-                        if 'membros_edicao' in st.session_state:
-                            del st.session_state.membros_edicao
+        if resultado: 
+            def formatar_label(res):
+                return f"{res['nome']} - CPF: {res['cpf']} - {res['nome_bairro']}"
+            
+            escolha = st.selectbox("Selecione a familia encontrada:", options=resultado, format_func=formatar_label)
 
-                familia_selecionada = df_busca[df_busca['uuid_familia'] == escolha_uuid].iloc[0].to_dict()
-                st.session_state.familia_visita = familia_selecionada
-        else:
-            st.warning("Nenhum responsável encontrado.")
+            if escolha:
+                st.success(f"Familia de {escolha['nome']} selecionada")
+                st.session_state.familia_focada = escolha
 
-# 2. FORMULÁRIO DE VISITA
-if 'familia_visita' in st.session_state:
-    f = st.session_state.familia_visita
-    
-    if 'membros_edicao' not in st.session_state:
-        st.session_state.membros_edicao = buscar_membros_familia(f['uuid_familia'])
+                membros = achar_familia(escolha['uuid_familia'])
 
-    st.subheader(f"📝 Atualização de Visita: Família de {f['nome']}")
+                for i, m in enumerate(membros):
 
-    st.write("### 👥 Membros da Família")
-    novos_dados_membros = []
-    
-    for i, membro in enumerate(st.session_state.membros_edicao):
-        with st.container(border=True):
-            if membro.get('nome') == "":
-                st.write(f"**Novo Membro {i+1}**")
-                m_nome = st.text_input("Nome Completo", key=f"nome_novo_{i}", on_change=validar_nome, args=(i, True))
-                if membro.get('erro_nome'): st.error(membro['erro_nome'])
+                    with st.container(border= True):
 
-                col_cpf, col_dn = st.columns(2)
-                with col_cpf:
-                    m_cpf = st.text_input("CPF", key=f"cpf_novo_{i}", max_chars=11, on_change=validar_cpf, args=(i, True))
-                    if membro.get('erro_cpf'): st.error(membro['erro_cpf'])
-                
-                with col_dn:
-                    date_min = date.today() - timedelta(days=43800)
-                    m_data_nasc = st.date_input(f"Data de Nascimento", min_value=date_min, max_value=date.today(), 
-                                               on_change=validar_data, args=(i, True), key=f'data_nasc_{i}')
-                    if membro.get('erro_data'): st.error(membro['erro_data'])
+                        st.write(m['nome'])
+
+                        if m['sexo'] != "Masculino":
+                            c1, c_ges, c_pcd, c2 = st.columns(4)
+                        else:
+                            c1, c_pcd, c2 = st.columns(3)
+                            c_ges = None
+
+                        with c1:
+                            m['renda'] = st.number_input("Renda individual", value=m['renda'], key=f"renda_{i}")
+
+                        if c_ges is not None:
+                            with c_ges:
+                                if m['sexo'] != "Masculino":
+                                    
+                                    index_gest = 0 if m['gestante'] == 1 else 1 
+                                    gestante = st.selectbox("Gestante?", options=["Sim", "Não"], index=index_gest, key=f"gestante_{i}")
+                                    m['gestante'] = 1 if gestante == "Sim" else 0
+
+                        with c_pcd:
+                            index_pcd = 0 if m['pcd'] == 1 else 1 
+                            pcd = st.selectbox("PCD?", options=["Sim", "Não"], index=index_pcd, key=f"pcd_{i}")
+                            m['pcd'] = 1 if pcd == "Sim" else 0
+
+                        with c2:
+                            telefone = float(m['telefone'] if m["telefone"] is not None else 0.0)
+                            m['telefone'] = st.number_input("Telefone" , placeholder="98999999999", value= telefone, on_change=validar_tel, args=(i,), key=f'telefone_{i}')
+
+
             else:
-                st.write(f"**{membro['nome']}**")
-                m_nome = membro['nome']
-                m_cpf = membro['cpf']
-                m_data_nasc = membro.get('data_nasc')
+                st.warning("Nenhuma familia encontrada com esses dados.")
 
-            c1, c2, c3 = st.columns(3)
-            with c1:
-                m_renda = st.number_input(f"Renda (R$)", value=float(membro['renda']), key=f"renda_{i}")
-            with c2:
-                m_sexo = membro['sexo'] if membro.get('nome') != "" else st.selectbox("Sexo", ["Masculino", "Feminino"], key=f"sexo_{i}")
-                if m_sexo != "Masculino":
-                    idx_gest = 1 if membro['gestante'] == 1 else 0
-                    m_gest = st.selectbox("Gestante?", ["Não", "Sim"], index=idx_gest, key=f"gest_{i}")
-                else:
-                    m_gest = "Não"
-            with c3:
-                idx_pcd = 1 if membro['pcd'] == 1 else 0
-                m_pcd = st.selectbox("PCD?", ["Não", "Sim"], index=idx_pcd, key=f"pcd_{i}")
+    
 
-            m_at = membro.copy()
-            m_at['nome'] = m_nome
-            m_at['cpf'] = m_cpf
-            m_at['renda'] = m_renda
-            m_at['gestante'] = 1 if m_gest == "Sim" else 0
-            m_at['pcd'] = 1 if m_pcd == "Sim" else 0
-            m_at['data_nasc'] = m_data_nasc
-            novos_dados_membros.append(m_at)
-
-    st.button("➕ Adicionar outro membro a esta família", on_click=adicionar_novo_membro)
-    st.divider()
-
-    st.write("### 🏠 Dados Gerais do Atendimento")
-    col_gen1, col_gen2 = st.columns(2)
-    with col_gen1:
-        beneficio_entregue = st.selectbox("Recebeu auxílio/cesta básica?", options=["Não", "Sim"])
-        recebeu_auxilio = 1 if beneficio_entregue == "Sim" else 0
-    with col_gen2:
-        observacoes_gerais = st.text_area("Observações da Visita", placeholder="Descreva aqui...")
-
-    if st.button("💾 Salvar Visita e Atualizar Cadastro", type="primary"):
-        tem_erros = any(m.get('erro_cpf') or m.get('erro_nome') or m.get('erro_data') for m in novos_dados_membros)
-        
-        if tem_erros:
-            st.error("⚠️ Verifique os erros nos membros antes de salvar.")
-        else:
-            with st.spinner("Finalizando registro e recalculando índices..."):
-                renda_total = sum(m['renda'] for m in novos_dados_membros)
-                sucesso = registrar_visita(
-                    f['uuid_familia'], 
-                    novos_dados_membros, 
-                    renda_total, 
-                    recebeu_auxilio, 
-                    observacoes_gerais
-                )
-                
-                if sucesso:
-                    msg_sucesso = st.empty() # Espaço reservado para a mensagem
-                    with msg_sucesso.container():
-                        st.success("✅ Visita registrada e vulnerabilidades atualizadas!")
-                        st.info("Sincronização concluída. Redirecionando para o Monitoramento...")
-                    
-                    # Limpeza de sessão
-                    chaves_para_limpar = ['familia_visita', 'membros_edicao']
-                    for key in chaves_para_limpar:
-                        if key in st.session_state:
-                            del st.session_state[key]
-                    
-                    # Pausa para o usuário ler a mensagem
-                    time.sleep(3)
-                    
-                    # Redirecionamento final
-                    st.switch_page("monitoramento.py")
-                else:
-                    st.error("❌ Falha na conexão com o banco de dados.")

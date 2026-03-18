@@ -115,6 +115,7 @@ def buscar_data_backup():
 
         return datetime.strptime(data[0], '%Y-%m-%d').date() if data else date(2000, 1, 1)
      except Exception as e:
+          print(e)
           return date(2000, 1, 1)
      
 def salvar_Bairro(nome_b, local):
@@ -205,15 +206,6 @@ def bairros_query():
      conn.close()
      return bairros
   
-def query_relatorio():
-     conn = conexao_bd()
-     cursor = conn.cursor()
-
-     cursor.execute('SELECT nome_bairro, nivel_vulnerabilidade FROM Bairros')
-     bairros = cursor.fetchall
-
-     cursor.execute('SELECT ')
-
 def criar_table():
         conn = conexao_bd()
         trabaiador = conn.cursor()
@@ -475,42 +467,39 @@ def registrar_visita(uuid_familia, lista_membros, renda_total, recebeu_auxilio, 
     finally:
         conn.close()
 
-def buscar_responsavel_por_cpf_ou_nome(termo_busca):
-    """Busca o responsável pelo CPF ou Nome para iniciar uma visita."""
+def achar_responsavel(busca):
     conn = conexao_bd()
-    conn.row_factory = sqlite3.Row 
+    conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    
-    # Ajustado: Filtramos pessoas que possuem o CPF igual ao cpf_responsavel da familia
-    query = """
+
+    cursor.execute('''
         SELECT 
-            f.uuid_familia, 
-            p.nome, 
-            p.cpf,
-            f.renda_familiar, 
-            b.nome_bairro,
-            f.cpf_responsavel
+                p.nome, 
+                f.uuid_familia, 
+                p.cpf, 
+                f.renda_familiar,
+                b.nome_bairro,
+                f.cpf_responsavel
         FROM Familias f
         JOIN Pessoas p ON f.cpf_responsavel = p.cpf
         JOIN Bairros b ON f.uuid_bairro = b.uuid_bairro
         WHERE (p.nome LIKE ? OR p.cpf LIKE ?)
-    """
-    
-    params = (f'%{termo_busca}%', f'%{termo_busca}%')
-    cursor.execute(query, params)
-    resultados = cursor.fetchall()
+                    ''', (f'%{busca}%', f'%{busca}%'))
+    resultado = cursor.fetchall()
+    conn.commit()
     conn.close()
-    
-    return [dict(row) for row in resultados]
 
-def buscar_membros_familia(uuid_familia):
+    return [dict(row) for row in resultado]
+
+def achar_familia(uuid_familia):
+
     conn = conexao_bd()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
+
+    cursor.execute('SELECT * FROM Pessoas WHERE uuid_familia = ?', (uuid_familia,))
+    resultado = cursor.fetchall()
     
-    cursor.execute("SELECT * FROM Pessoas WHERE uuid_familia = ?", (uuid_familia,))
-    membros = [dict(row) for row in cursor.fetchall()]
     conn.close()
-    return membros
 
-
+    return [dict(row) for row in resultado]
