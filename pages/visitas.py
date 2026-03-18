@@ -1,5 +1,5 @@
 import streamlit as st
-from modulos.database import achar_responsavel, achar_familia
+from modulos.database import achar_responsavel, achar_familia, novo_bairro
 from modulos.validacao import validar_tel
 
 st.title("📍 Acompanhamento e Visitas Técnicas")
@@ -53,12 +53,67 @@ with st.container(border= True):
                             m['pcd'] = 1 if pcd == "Sim" else 0
 
                         with c2:
-                            telefone = float(m['telefone'] if m["telefone"] is not None else 0.0)
-                            m['telefone'] = st.number_input("Telefone" , placeholder="98999999999", value= telefone, on_change=validar_tel, args=(i,), key=f'telefone_{i}')
+                            m['telefone'] = st.text_input("Telefone" , placeholder="98999999999", value= m['telefone'], on_change=validar_tel, args=(i,), key=f'telefone_{i}')
+
+                with st.container(border=True):
+
+                    st.write("Dados Gerais da familia")
+
+                    # auxilio, bairro 
+
+                    c_aux, c_b, c_bn = st.columns(3)
+
+                    with c_aux:
+                        index_aux = 0 if m['auxilio'] == 1 else 1 
+                        aux = st.selectbox("Recebeu Auxílio?", options=["Sim", "Não"], index=index_aux, key="aux")
+                        m['auxilio'] = 1 if aux == "Sim" else 0
+
+                    with c_b:
+                        bairro_s = st.selectbox("Mudaram de bairro?", options=['Sim', 'Não'], key='bairro')
+
+                    with c_bn:
+                        bairro_novo = None
+                        if bairro_s == "Sim":
+                            bairro_novo = st.text_input("Bairro novo", key='input', placeholder='Nome do Bairro')
+
+                    sucesso_bairro_val = st.empty()
+                    erro_bairro_val = st.empty()
+
+                    if bairro_s == "Não":
+                        m['bairro'] = membros[0]['nome_bairro']
+
+                    else:
+                        if not bairro_novo:
+                            erro_bairro_val.error("⚠️ Por favor, digite o nome do bairro.")
+                            m['bairro'] = membros[0]['nome_bairro']
+
+                        else:
+    
+                            resultado_bairro = novo_bairro(bairro_novo)
+
+                            if resultado_bairro == "":
+                                erro_bairro_val.error(f"⚠️ O local '{bairro_novo}' não foi reconhecido em São Luís.")
+
+                            else:
+                                st.session_state.familia_focada['nome_bairro'] = resultado_bairro
+                                sucesso_bairro_val.success(f"Bairro {resultado_bairro} validado!")
+
+                    #responsavel, custo moradia
+
+                    c_res, c_cm = st.columns(2)
+
+                    with c_res:
+                        res_select = st.selectbox(f'{escolha['nome']} ainda é o responsavel?', options=['Sim', 'Não'], key='responsavel')
+                        if res_select == "Não":
+                            nomes = [m['nome'] for m in membros if m['cpf'] != escolha['cpf_responsavel']]
+                            novo_res = st.selectbox("Selecione o novo responsavel",options=nomes)
 
 
-            else:
+            else:       
                 st.warning("Nenhuma familia encontrada com esses dados.")
+
+        else:
+            st.warning("Nenhuma familia encontrada com esses dados.")
 
     
 

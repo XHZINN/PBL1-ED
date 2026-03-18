@@ -139,39 +139,33 @@ def salvar_Bairro(nome_b, local):
 
     conn.commit()
 
-def novo_bairro(indice):
-     
-     k_bairro = f'input_{indice}_{st.session_state.form_id}'
-     nome_b = st.session_state.get(k_bairro)
+def novo_bairro(nome_b):
+    if not nome_b:
+        return
 
-     if not nome_b:
-          return
+    conn = conexao_bd()
 
-     conn = conexao_bd()
+    bairros = [linha[0] for linha in conn.execute('SELECT nome_bairro FROM Bairros').fetchall()]
+    conn.close()
 
-     bairros = [linha[0] for linha in conn.execute('SELECT nome_bairro FROM Bairros').fetchall()]
-     conn.close()
+    if limpar(nome_b) in [limpar(b) for b in bairros]:
+        return nome_b.title()
+    
+    geolocator = Nominatim(user_agent="buscar_bairro")
+    busca_b = f"{nome_b}, São Luis, MA, Brasil" 
 
-     if limpar(nome_b) in [limpar(b) for b in bairros]:
-          st.session_state.membro[indice]['bairro'] = nome_b.title()
-          return 
-     
-     geolocator = Nominatim(user_agent="buscar_bairro")
-     busca_b = f"{nome_b}, São Luis, MA, Brasil" 
-
-     try:
+    try:
 
         local = geolocator.geocode(busca_b, timeout=10)
 
         if local and ("São Luís" in local.address or "Sao Luis" in local.address):
 
             salvar_Bairro(nome_b, local)
-            st.session_state.membro[indice]['bairro'] = nome_b.title()
-            return     
-     except Exception as e:
-         print(f"Erro na API: {e}")
+            return  nome_b.title()   
+    except Exception as e:
+        print(f"Erro na API: {e}")
     
-     st.session_state.membro[indice]['bairro'] = ""
+    return ""
 
 def nome_bairros():
      
@@ -497,7 +491,11 @@ def achar_familia(uuid_familia):
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
-    cursor.execute('SELECT * FROM Pessoas WHERE uuid_familia = ?', (uuid_familia,))
+    cursor.execute('''SELECT p.nome, p.sexo, p.gestante, p.pcd, p.renda, p.telefone, p.cpf, f.auxilio, f.tipo_moradia, f.custo_moradia, b.nome_bairro
+                   FROM Pessoas p
+                   JOIN Familias f ON p.uuid_familia = f.uuid_familia
+                   JOIN Bairros b ON f.uuid_bairro = b.uuid_bairro
+                   WHERE p.uuid_familia = ?''', (uuid_familia,))
     resultado = cursor.fetchall()
     
     conn.close()

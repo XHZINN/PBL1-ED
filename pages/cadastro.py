@@ -64,25 +64,38 @@ def form(i, membro, bairros):
             
             if i == 0:
                 c0, c1 = st.columns(2)
+        
                 with c0:
                     bairro_s = st.selectbox("Bairro", options=bairros, key=f'bairro_{i}_{st.session_state.form_id}')
 
                 with c1:
+                    bairro_validar = None
                     if bairro_s == "Outro":
-                        st.text_input("Bairro", key=f'input_{i}_{st.session_state.form_id}', placeholder="Nome do bairro", on_change=novo_bairro, args=(i,))
+                        bairro_validar = st.text_input("Bairro", key=f'input_{i}_{st.session_state.form_id}', placeholder="Nome do bairro")
 
-                erro_bairro = st.empty()
-                nome_bairro_input = st.session_state.get(f'input_{i}_{st.session_state.form_id}')
+                sucesso_bairro_val = st.empty()
+                erro_bairro_val = st.empty()
 
-                if bairro_s == "Outro":
-                    if nome_bairro_input and membro['bairro'] == "":
-                        erro_bairro.error(f"⚠️ O local '{nome_bairro_input}' não foi reconhecido.")
-                    elif not nome_bairro_input:
-                        erro_bairro.error("⚠️ Coloque o nome de algum bairro no campo novo.")
-                    else:
-                        membro['bairro'] = nome_bairro_input
-                else:
+                if bairro_s != "Outro":
                     membro['bairro'] = bairro_s
+
+                else:
+
+                    if not bairro_validar:
+
+                        erro_bairro_val.error("⚠️ Por favor, digite o nome do bairro.")
+                        membro['bairro'] = ""
+                    
+                    else:
+                        
+                        resultado_bairro = novo_bairro(bairro_validar)
+
+                        if resultado_bairro == "":
+                            erro_bairro_val.error(f'⚠️ O local {bairro_validar} não foi reconhecido em São Luís.')
+                        
+                        else:
+                            membro['bairro'] = resultado_bairro
+                            sucesso_bairro_val.success(f"Bairro {resultado_bairro} validado!")
 
                 c2, c3 = st.columns(2)
                 with c2:
