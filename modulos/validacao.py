@@ -3,22 +3,30 @@ import streamlit as st
 from datetime import date
 import unicodedata
 
-def validar_cpf(indice):
+def validar_cpf(indice, is_visita=False):
+    # Abstração de chaves e listas
+    if is_visita:
+        k_cpf_key = f'cpf_novo_{indice}'
+        lista_key = 'membros_edicao'
+    else:
+        f_id = st.session_state.get('form_id', '')
+        k_cpf_key = f'cpf_{indice}_{f_id}'
+        lista_key = 'membro'
 
-    k_cpf = f'cpf_{indice}_{st.session_state.form_id}'
-    cpf = st.session_state.get(k_cpf)
+    cpf_bruto = st.session_state.get(k_cpf_key)
+    membro_atual = st.session_state[lista_key][indice]
 
-    if not cpf:
-        st.session_state.membro[indice]['erro_cpf'] = ""
+    if not cpf_bruto:
+        membro_atual['erro_cpf'] = ""
         return
 
-    cpf = re.sub(r'\D', '', str(cpf))
+    cpf = re.sub(r'\D', '', str(cpf_bruto))
 
     if len(cpf) != 11:
-        st.session_state.membro[indice]['erro_cpf'] = "CPF deve conter 11 digitos "
-        st.session_state.membro[indice]['cpf'] = ""
+        membro_atual['erro_cpf'] = "CPF deve conter 11 dígitos"
         return
 
+    # Sua lógica matemática de validação
     soma = 0
     for n in range(9):
         soma += int(cpf[n]) * (10 - n)
@@ -32,97 +40,94 @@ def validar_cpf(indice):
     digito_2 = resto if resto < 10 else 0
 
     if cpf == cpf[0] * 11 or int(cpf[9]) != digito_1 or int(cpf[10]) != digito_2:
-        st.session_state.membro[indice]['erro_cpf'] = "Padrão de CPF inválido"
-    
-
+        membro_atual['erro_cpf'] = "Padrão de CPF inválido"
     else:
-        st.session_state.membro[indice]['erro_cpf'] = ""
+        membro_atual['erro_cpf'] = ""
 
-def validar_nome(indice):
+def validar_nome(indice, is_visita=False):
+    if is_visita:
+        # Na página de visitas
+        key_widget = f"nome_novo_{indice}"
+        lista_key = "membros_edicao"
+    else:
+        # Na página de cadastro 
+        f_id = st.session_state.get('form_id', '')
+        key_widget = f"nome_{indice}_{f_id}"
+        lista_key = "membros"
 
-    k_nome = st.session_state[f'nome_{indice}_{st.session_state.form_id}']
+    # 2. BUSCA DO VALOR USANDO A CHAVE DINÂMICA
+    # Usamos o .get() para evitar o erro de atributo se a chave ainda não existir
+    k_nome = st.session_state.get(key_widget, "")
 
-    if len(k_nome) > 0 and len(k_nome) < 2:
-        st.session_state.membro[indice]['erro_nome'] = "Nome muito curto (mínimo 2 letras)"
+    # Criamos uma referência curta para facilitar a escrita
+    membro_atual = st.session_state[lista_key][indice]
+
+    if not k_nome:
+        membro_atual['erro_nome'] = ""
+        return
+
+    if 0 < len(k_nome) < 2:
+        membro_atual['erro_nome'] = "Nome muito curto (mínimo 2 letras)"
         return
 
     padrao = r"^[A-Za-zÀ-ÿ]+(?:[ \-\'’´][A-Za-zÀ-ÿ]*)*$"
 
-    if not k_nome:
-        st.session_state.membro[indice]['erro_nome'] = ""
-        return
-
     if not re.match(padrao, k_nome):
-        st.session_state.membro[indice]['erro_nome'] = "Nome fora do padrão"
-
+        membro_atual['erro_nome'] = "Nome fora do padrão"
     else:
-        st.session_state.membro[indice]['erro_nome'] = ""
+        membro_atual['erro_nome'] = ""
 
-def validar_data(indice):
+def validar_data(indice, is_visita=False):
+    if is_visita:
+        k_data_key = f'data_nasc_{indice}'
+        lista_key = 'membros_edicao'
+    else:
+        f_id = st.session_state.get('form_id', '')
+        k_data_key = f'data_nasc_{indice}_{f_id}'
+        lista_key = 'membro'
 
-    if indice == 0:
-        k_data = st.session_state[f'data_nasc_{indice}_{st.session_state.form_id}']
-        
+    data_nasc = st.session_state.get(k_data_key)
+    membro_atual = st.session_state[lista_key][indice]
+
+    # Validação apenas para o RESPONSÁVEL (índice 0)
+    if indice == 0 and data_nasc:
         hoje = date.today()
-        dias = (hoje - k_data).days
+        dias = (hoje - data_nasc).days
 
         if dias < 6575:
-            st.session_state.membro[indice]['erro_data'] = "O responsável deve ter pelo menos 18 anos."
-
+            membro_atual['erro_data'] = "O responsável deve ter pelo menos 18 anos."
         else: 
-            st.session_state.membro[indice]['erro_data'] = ""
+            membro_atual['erro_data'] = ""
     else:
-        st.session_state.membro[indice]['erro_data'] = ""
+        membro_atual['erro_data'] = ""
 
-def validar_tel(indice):
+def validar_tel(indice, is_visita=False):
+    if is_visita:
+        k_tel_key = f'telefone_novo_{indice}' # Ou ajuste conforme sua key na visita
+        lista_key = 'membros_edicao'
+    else:
+        f_id = st.session_state.get('form_id', '')
+        k_tel_key = f'telefone_{indice}_{f_id}'
+        lista_key = 'membro'
 
-    k_tel1 = st.session_state[f'telefone_{indice}_{st.session_state.form_id}']
-    k_tel = k_tel1.strip()
-
-    padrao = r'^\(?([1-9]{2})\)?\s?([9]?\d{4})-?(\d{4})$'
+    k_tel = str(st.session_state.get(k_tel_key, "")).strip()
+    membro_atual = st.session_state[lista_key][indice]
 
     if not k_tel:
-        st.session_state.membro[indice]['erro_tel'] = ""
+        membro_atual['erro_tel'] = ""
         return
-    if k_tel[:1] == "(":
-     ddd_atual = k_tel[1:3]
-    else:
-     ddd_atual = k_tel[:2]
+
+    padrao = r'^\(?([1-9]{2})\)?\s?([9]?\d{4})-?(\d{4})$'
+    
+    # Lógica do DDD Maranhense
+    ddd_atual = k_tel[1:3] if k_tel.startswith("(") else k_tel[:2]
 
     if not re.match(padrao, k_tel):
-        st.session_state.membro[indice]['erro_tel'] = "Telefone fora do padrão"
-        return
-
-    elif not ddd_atual in ["99", "98" ]:
-        st.session_state.membro[indice]['erro_tel'] = "DDD não pertence ao Maranhão meu jovem"
-
+        membro_atual['erro_tel'] = "Telefone fora do padrão"
+    elif ddd_atual not in ["99", "98"]:
+        membro_atual['erro_tel'] = "DDD não pertence ao Maranhão meu jovem"
     else:
-        st.session_state.membro[indice]['erro_tel'] = ""
-
-def validar_dados(cpf, nome, telefone):
-    regra_cpf = r'^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$'
-
-    regra_nome = r"^[A-Za-zÀ-ÿ]+(?:[ \-\'’´][A-Za-zÀ-ÿ]*)*$"
-
-    regra_tel = r'^\(?([1-9]{2})\)?\s?([9]?\d{4})-?(\d{4})$'
-   
-    cpfn = re.sub(r'\D', '', cpf)
-    nomen = nome.strip()
-    teln = re.sub(r'\D', '', telefone)
-   
-    if not cpfn or not nomen or not teln:
-        return False, "Há campos vazios, Por favor faça o preenchimento de todos!"
-
-    if not re.match(regra_cpf, cpfn):
-        return False, "CPF invalido! Digite apenas 11 numeros"
-    
-    if not re.match(regra_nome, nomen):
-        return False, "Nome invalido! Por favor insira apenas letras e acentos"
-    
-    if not re.match(regra_tel, teln):
-        return False, "Número telefone invalido! Digite um número telefone valido"
-    
-    return True, "Dados Validos"
+        membro_atual['erro_tel'] = ""
 
 def limpar(t):
      
