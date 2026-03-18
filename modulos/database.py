@@ -473,7 +473,10 @@ def achar_responsavel(busca):
                 p.cpf, 
                 f.renda_familiar,
                 b.nome_bairro,
-                f.cpf_responsavel
+                f.cpf_responsavel,
+                f.custo_moradia,
+                f.auxilio,
+                f.tipo_moradia
         FROM Familias f
         JOIN Pessoas p ON f.cpf_responsavel = p.cpf
         JOIN Bairros b ON f.uuid_bairro = b.uuid_bairro
@@ -491,7 +494,7 @@ def achar_familia(uuid_familia):
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
-    cursor.execute('''SELECT p.nome, p.sexo, p.gestante, p.pcd, p.renda, p.telefone, p.cpf, f.auxilio, f.tipo_moradia, f.custo_moradia, b.nome_bairro
+    cursor.execute('''SELECT p.nome, p.sexo, p.gestante, p.data_nasc, p.pcd, p.renda, p.telefone, p.cpf, b.nome_bairro
                    FROM Pessoas p
                    JOIN Familias f ON p.uuid_familia = f.uuid_familia
                    JOIN Bairros b ON f.uuid_bairro = b.uuid_bairro
