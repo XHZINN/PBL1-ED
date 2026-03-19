@@ -504,3 +504,17 @@ def achar_familia(uuid_familia):
     conn.close()
 
     return [dict(row) for row in resultado]
+
+def todos_responsaveis_familia():
+    conn = conexao_bd()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+    SELECT p.nome
+    FROM Pessoas p
+    JOIN Familias f ON p.uuid_familia = f.uuid_familia
+    WHERE f.cpf_responsavel = p.cpf                
+    ''')
+    qualquer = cursor.fetchall()
+    conn.close()
+    return [linha[0] for linha in qualquer]
