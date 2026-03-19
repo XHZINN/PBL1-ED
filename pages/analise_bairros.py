@@ -1,97 +1,17 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
-from datetime import datetime, timedelta
-from modulos.database import conexao_bd
+from datetime import datetime
+from modulos.database import carregar_dados_bairros, carregar_evolucao_mensal, carregar_metricas_gerais
 
 st.set_page_config(page_title="Análise por Bairros", layout="wide")
 st.title("📊 Análise de Vulnerabilidade por Bairro - São Luís")
 st.markdown("---")
 
-def carregar_dados_bairros():
-    """Carrega dados consolidados dos bairros"""
-    conn = conexao_bd()
-    
-    query = """
-    WITH familias_com_pessoas AS (
-        SELECT 
-            f.uuid_bairro,
-            f.uuid_familia,
-            f.renda_familiar,
-            COUNT(p.uuid_pessoa) as qtd_pessoas
-        FROM Familias f
-        LEFT JOIN Pessoas p ON f.uuid_familia = p.uuid_familia
-        GROUP BY f.uuid_familia
-    )
-    SELECT 
-        b.nome_bairro,
-        b.nivel_vulnerabilidade as vulnerabilidade_atual,
-        COUNT(DISTINCT f.uuid_familia) as total_familias,
-        SUM(fcp.qtd_pessoas) as total_pessoas,
-        COALESCE(SUM(CASE WHEN p.gestante = 1 THEN 1 ELSE 0 END), 0) as total_gestantes,
-        COALESCE(SUM(CASE WHEN p.pcd = 1 THEN 1 ELSE 0 END), 0) as total_pcd,
-        AVG(f.renda_familiar) as renda_media_familiar,
-        AVG(f.renda_familiar / NULLIF(fcp.qtd_pessoas, 0)) as renda_per_capita_media
-    FROM Bairros b
-    LEFT JOIN Familias f ON b.uuid_bairro = f.uuid_bairro
-    LEFT JOIN familias_com_pessoas fcp ON f.uuid_familia = fcp.uuid_familia
-    LEFT JOIN Pessoas p ON f.uuid_familia = p.uuid_familia
-    GROUP BY b.uuid_bairro, b.nome_bairro
-    ORDER BY b.nivel_vulnerabilidade DESC
-    """
-    
-    df = pd.read_sql_query(query, conn)
-    conn.close()
-    return df.fillna(0)
 
-def carregar_evolucao_mensal():
-    """Carrega dados de evolução mensal por bairro"""
-    conn = conexao_bd()
-    
-    query = """
-    SELECT 
-        b.nome_bairro,
-        strftime('%Y-%m', v.data_visita) as mes,
-        COUNT(DISTINCT v.uuid_visita) as total_visitas,
-        AVG(v.nivel_vulnerabilidade) as vulnerabilidade_media,
-        AVG(v.renda_no_momento) as renda_media,
-        SUM(v.auxilio) as total_auxilio
-    FROM Visitas v
-    JOIN Familias f ON v.uuid_familia = f.uuid_familia
-    JOIN Bairros b ON f.uuid_bairro = b.uuid_bairro
-    WHERE v.data_visita IS NOT NULL
-    GROUP BY b.nome_bairro, strftime('%Y-%m', v.data_visita)
-    ORDER BY mes DESC, b.nome_bairro
-    """
-    
-    df = pd.read_sql_query(query, conn)
-    conn.close()
-    return df
 
-def carregar_metricas_gerais():
-    """Carrega métricas gerais do sistema"""
-    conn = conexao_bd()
-    
-    query = """
-    SELECT 
-        COUNT(DISTINCT f.uuid_familia) as total_familias,
-        COUNT(DISTINCT p.uuid_pessoa) as total_pessoas,
-        AVG(f.nivel_vulnerabilidade) as vulnerabilidade_media_geral,
-        COUNT(DISTINCT v.uuid_visita) as total_visitas,
-        COUNT(DISTINCT CASE WHEN v.data_visita >= date('now', '-30 days') THEN v.uuid_visita END) as visitas_30d
-    FROM Familias f
-    LEFT JOIN Pessoas p ON f.uuid_familia = p.uuid_familia
-    LEFT JOIN Visitas v ON f.uuid_familia = v.uuid_familia
-    """
-    
-    df = pd.read_sql_query(query, conn)
-    conn.close()
-    return df.iloc[0] if not df.empty else pd.Series()
+# --- LAYOUT PRINCIPAL COM FILTROS INTEGRADOS ---
 
-# ============================================
-# LAYOUT PRINCIPAL COM FILTROS INTEGRADOS
-# ============================================
 
 # Carregar dados
 with st.spinner("Carregando dados dos bairros..."):
@@ -103,10 +23,10 @@ with st.spinner("Carregando dados dos bairros..."):
 with st.sidebar:
     st.header("🔍 Filtros de Análise")
     
-    # Categoria 1: Filtro Geográfico
+    
     st.subheader("📍 Localização")
     
-    # Ordenar bairros por vulnerabilidade para melhor experiência
+    # Ordenar bairros por vulnerabilidade 
     bairros_ordenados = df_bairros.sort_values('vulnerabilidade_atual', ascending=False)['nome_bairro'].tolist()
     
     tipo_selecao = st.radio(
@@ -130,7 +50,7 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Categoria 2: Filtro Temporal
+   
     st.subheader("📅 Período de Análise")
     
     if not df_evolucao.empty:
@@ -160,7 +80,7 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Categoria 3: Filtro de Indicadores
+    
     st.subheader("📊 Indicadores")
     
     faixa_vulnerabilidade = st.slider(
@@ -187,9 +107,9 @@ df_bairros_filtrado = df_bairros[
 if not incluir_sem_familias:
     df_bairros_filtrado = df_bairros_filtrado[df_bairros_filtrado['total_familias'] > 0]
 
-# ============================================
-# MÉTRICAS PRINCIPAIS
-# ============================================
+
+# --- MÉTRICAS PRINCIPAIS ---
+
 st.subheader("📌 Visão Geral do Município")
 
 col1, col2, col3, col4, col5 = st.columns(5)
@@ -226,9 +146,9 @@ with col5:
 
 st.markdown("---")
 
-# ============================================
-# ANÁLISES POR BAIRRO
-# ============================================
+
+# --- ANÁLISES POR BAIRRO ---
+
 
 if not df_bairros_filtrado.empty:
     # Top metrics dos bairros filtrados
@@ -263,11 +183,10 @@ if not df_bairros_filtrado.empty:
         )
     
     # Gráficos organizados em abas
-    tab1, tab2, tab3, tab4 = st.tabs([
+    tab1, tab2, tab3 = st.tabs([
         "🏆 Ranking de Vulnerabilidade", 
         "📈 Evolução Temporal", 
-        "👥 Perfil Demográfico",
-        "📋 Tabela Comparativa"
+        "👥 Perfil Demográfico"
     ])
     
     with tab1:
@@ -282,7 +201,7 @@ if not df_bairros_filtrado.empty:
                 x='vulnerabilidade_atual',
                 y='nome_bairro',
                 orientation='h',
-                title=f"Ranking de Vulnerabilidade",
+                title="Ranking de Vulnerabilidade",
                 labels={'vulnerabilidade_atual': 'Índice (0-10)', 'nome_bairro': ''},
                 color='vulnerabilidade_atual',
                 color_continuous_scale='RdYlGn_r',
@@ -458,66 +377,6 @@ if not df_bairros_filtrado.empty:
                 fig.update_layout(height=400)
                 st.plotly_chart(fig, use_container_width=True)
     
-    with tab4:
-        # Tabela comparativa completa
-        df_display = df_bairros_filtrado.copy()
-        df_display = df_display.sort_values('vulnerabilidade_atual', ascending=False)
-        
-        # Formatação
-        df_display['vulnerabilidade_atual'] = df_display['vulnerabilidade_atual'].round(2)
-        df_display['renda_media_familiar'] = df_display['renda_media_familiar'].apply(
-            lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-        )
-        df_display['renda_per_capita_media'] = df_display['renda_per_capita_media'].apply(
-            lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-        )
-        
-        # Função para colorir linhas por vulnerabilidade
-        def colorir_linhas(row):
-            try:
-                val = float(str(row['vulnerabilidade_atual']).replace(',', '.'))
-                if val >= 8:
-                    return ['background-color: #FFE5E5'] * len(row)
-                elif val >= 6:
-                    return ['background-color: #FFF0D9'] * len(row)
-                elif val >= 3:
-                    return ['background-color: #FFFFE0'] * len(row)
-                else:
-                    return ['background-color: #E8F5E8'] * len(row)
-            except:
-                return [''] * len(row)
-        
-        styled_df = df_display[[
-            'nome_bairro', 'vulnerabilidade_atual', 'total_familias', 
-            'total_pessoas', 'total_gestantes', 'total_pcd',
-            'renda_media_familiar', 'renda_per_capita_media'
-        ]].style.apply(colorir_linhas, axis=1)
-        
-        st.dataframe(
-            styled_df,
-            column_config={
-                "nome_bairro": "Bairro",
-                "vulnerabilidade_atual": st.column_config.NumberColumn("Vulnerab.", format="%.2f"),
-                "total_familias": "Famílias",
-                "total_pessoas": "Pessoas",
-                "total_gestantes": "Gestantes",
-                "total_pcd": "PCDs",
-                "renda_media_familiar": "Renda Média Família",
-                "renda_per_capita_media": "Renda per capita"
-            },
-            use_container_width=True,
-            hide_index=True
-        )
-        
-        # Botão de download
-        csv = df_bairros_filtrado.to_csv(index=False)
-        st.download_button(
-            label="📥 Download dos Dados (CSV)",
-            data=csv,
-            file_name=f"analise_bairros_{datetime.now().strftime('%Y%m%d')}.csv",
-            mime="text/csv"
-        )
-
 else:
     st.warning("⚠️ Nenhum bairro encontrado com os filtros selecionados.")
 

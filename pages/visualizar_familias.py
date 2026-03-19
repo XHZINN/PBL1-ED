@@ -1,9 +1,7 @@
 import streamlit as st
-import pandas as pd
 import plotly.express as px
-from datetime import datetime, timedelta
-from modulos.database import conexao_bd
-from modulos.calculos import calcular_idade
+from datetime import datetime
+from modulos.database import carregar_todas_familias, carregar_membros_familia, carregar_estatisticas_gerais
 
 st.set_page_config(page_title="Visualizar Famílias", layout="wide")
 st.title("👨‍👩‍👧‍👦 Visualização de Famílias Cadastradas")
@@ -11,13 +9,11 @@ st.markdown("---")
 
 # --- FUNÇÕES DE AUXÍLIO ---
 def formatar_moeda(valor):
-    """Formata valores numéricos para o padrão de moeda brasileiro"""
+    " Formata valores numericos para o padrão de moeda do Brasil"
     return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 def colorir_vulnerabilidade(val):
-    """Retorna o estilo CSS baseado no nível de vulnerabilidade"""
     try:
-        # Garante que estamos lidando com float
         v = float(val)
         if v >= 8: return 'background-color: #FFE5E5; color: #990000; font-weight: bold' # Crítico
         if v >= 6: return 'background-color: #FFF0D9; color: #995c00' # Alto
@@ -25,61 +21,6 @@ def colorir_vulnerabilidade(val):
         return 'background-color: #E8F5E8; color: #006600' # Baixo
     except:
         return ''
-
-# --- FUNÇÕES DE DADOS ---
-@st.cache_data(ttl=600)
-def carregar_todas_familias():
-    conn = conexao_bd()
-    query = """
-    SELECT 
-        f.uuid_familia, b.nome_bairro, f.tipo_moradia, f.custo_moradia,
-        f.renda_familiar, f.auxilio, f.nivel_vulnerabilidade, f.ultima_visita,
-        COUNT(p.uuid_pessoa) as qtd_membros,
-        SUM(CASE WHEN p.gestante = 1 THEN 1 ELSE 0 END) as qtd_gestantes,
-        SUM(CASE WHEN p.pcd = 1 THEN 1 ELSE 0 END) as qtd_pcd,
-        (SELECT nome FROM Pessoas WHERE cpf = f.cpf_responsavel) as nome_responsavel,
-        f.cpf_responsavel
-    FROM Familias f
-    JOIN Bairros b ON f.uuid_bairro = b.uuid_bairro
-    LEFT JOIN Pessoas p ON f.uuid_familia = p.uuid_familia
-    GROUP BY f.uuid_familia
-    ORDER BY f.nivel_vulnerabilidade DESC
-    """
-    df = pd.read_sql_query(query, conn)
-    conn.close()
-    return df
-
-def carregar_membros_familia(uuid_familia):
-    conn = conexao_bd()
-    query = """
-    SELECT nome, sexo, gestante, pcd, renda, data_nasc, telefone, cpf
-    FROM Pessoas WHERE uuid_familia = ?
-    ORDER BY CASE WHEN cpf = (SELECT cpf_responsavel FROM Familias WHERE uuid_familia = ?) THEN 0 ELSE 1 END, data_nasc
-    """
-    df = pd.read_sql_query(query, conn, params=(uuid_familia, uuid_familia))
-    conn.close()
-    if not df.empty:
-        df['idade'] = df['data_nasc'].apply(calcular_idade)
-        df['faixa_etaria'] = df['idade'].apply(
-            lambda x: 'Criança (0-12)' if x < 13 else ('Adolescente (13-17)' if x < 18 else ('Adulto (18-59)' if x < 60 else 'Idoso (60+)'))
-        )
-    return df
-
-def carregar_estatisticas_gerais():
-    conn = conexao_bd()
-    query = """
-    SELECT 
-        COUNT(DISTINCT f.uuid_familia) as total_familias,
-        COUNT(p.uuid_pessoa) as total_pessoas,
-        AVG(f.nivel_vulnerabilidade) as vulnerabilidade_media,
-        AVG(f.renda_familiar) as renda_media,
-        COUNT(DISTINCT CASE WHEN f.auxilio = 1 THEN f.uuid_familia END) as familias_com_auxilio
-    FROM Familias f
-    LEFT JOIN Pessoas p ON f.uuid_familia = p.uuid_familia
-    """
-    df = pd.read_sql_query(query, conn)
-    conn.close()
-    return df.iloc[0] if not df.empty else pd.Series()
 
 # --- CARREGAMENTO INICIAL ---
 df_familias = carregar_todas_familias()
@@ -134,7 +75,7 @@ tab_lista, tab_detalhe, tab_graficos = st.tabs(["📋 Lista", "🔍 Detalhes", "
 
 with tab_lista:
     if not df_filtrado.empty:
-        # CORREÇÃO DO ERRO: Selecionamos as colunas ANTES de aplicar o Style
+    
         df_view = df_filtrado[[
             'nome_bairro', 'nome_responsavel', 'qtd_membros', 
             'renda_familiar', 'nivel_vulnerabilidade', 'auxilio', 'ultima_visita'
@@ -142,11 +83,9 @@ with tab_lista:
         
         # Formatação de texto
         df_view['auxilio'] = df_view['auxilio'].map({1: '✅ Sim', 0: '❌ Não'})
-        
-        # Aplicação do Style (Aqui ele vira um objeto Styler)
+    
         styled_df = df_view.style.applymap(colorir_vulnerabilidade, subset=['nivel_vulnerabilidade'])
         
-        # Exibição
         st.dataframe(
             styled_df,
             column_config={

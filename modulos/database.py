@@ -2,53 +2,14 @@ import sqlite3
 import streamlit as st
 import uuid
 from geopy import Nominatim
-from datetime import date, timedelta, datetime
-import shutil
-import os
+import pandas as pd
+from datetime import date
 from .validacao import limpar_somente_numeros, limpar
-from .calculos import calcular_indice_vulnerabilidade_familia
+from .calculos import calcular_indice_vulnerabilidade_familia, calcular_idade
 
 def conexao_bd():
     return sqlite3.connect('Banco_dados.db')
 
-def backup():
-
-    last_data = buscar_data_backup()
-    agora = datetime.now()
-    hoje = agora.date()
-    data_formatada = agora.strftime('%Y-%m-%d %H:%M:%S')
-
-    if hoje <= last_data + timedelta(days=7):
-
-        try:
-            if not os.path.isdir('Backups'):
-                os.makedirs("Backups")
-
-            banco_dados = "Banco_dados.db"
-            nome_backup = f"backup_{hoje}.db"
-
-            path = os.path.join("Backups", nome_backup)
-
-            shutil.copy2(banco_dados, path)
-        
-
-            conn = conexao_bd()
-            cursor = conn.cursor()
-
-            uuid_backup = str(uuid.uuid4())
-            tipo = "Completo"
-
-            cursor.execute('''
-                INSERT INTO Backup(uuid_backup, nome_backup, caminho, data_criacao, tipo)
-                VALUES (?, ?, ?, ?, ?)
-                    ''', (uuid_backup, nome_backup, path, data_formatada, tipo))
-            
-            conn.commit()
-            conn.close()
-
-        except Exception as e:
-             print(f'Erro ao salvar novo backup semanal: {e}')
-             
 def dados_familia_calculo(familia, cursor=None):
     # 1. Gerenciamento de Conexão Local ou Externa
     conn_local = None
@@ -102,22 +63,6 @@ def dados_familia_calculo(familia, cursor=None):
         if conn_local:
             conn_local.close()
 
-def buscar_data_backup():
-     
-     try:
-    
-        conn = conexao_bd()
-        cursor = conn.cursor()
-
-        cursor.execute('SELECT data_criacao FROM Backup ORDER BY data_criacao DESC LIMIT 1')
-        data = cursor.fetchone()
-        conn.close()
-
-        return datetime.strptime(data[0], '%Y-%m-%d').date() if data else date(2000, 1, 1)
-     except Exception as e:
-          print(e)
-          return date(2000, 1, 1)
-     
 def salvar_Bairro(nome_b, local):
 
     conn = conexao_bd()
@@ -328,7 +273,6 @@ def atualizar_vulnerabilidades_familias(uuid_familia=None, cursor=None):
             dados = dados_familia_calculo(uuid_familia, cursor=cur)
             
             if dados:
-                # Ajusta para o formato esperado pela função de cálculo
                 if 'membros' not in dados and 'membro' in dados:
                     dados['membros'] = dados['membro']
                 
@@ -347,13 +291,11 @@ def atualizar_vulnerabilidades_familias(uuid_familia=None, cursor=None):
         
         # MODO MASSA: Atualiza TODAS as famílias
         else:
-            print("[*] Atualizando vulnerabilidade de TODAS as famílias...")
             
             # Busca todas as famílias
             cur.execute("SELECT uuid_familia FROM Familias")
             familias = cur.fetchall()
             
-            total = len(familias)
             atualizadas = 0
             erros = 0
             
@@ -378,18 +320,16 @@ def atualizar_vulnerabilidades_familias(uuid_familia=None, cursor=None):
                     
                     # Progresso a cada 10 famílias
                     if i % 10 == 0:
-                        print(f"[*] Processadas {i}/{total} famílias...")
                         if conn_local:
                             conn_local.commit()
                             
                 except Exception as e:
                     erros += 1
-                    print(f"[-] Erro ao atualizar família {fam_id}: {e}")
+                    print(f"Erro: {e}")
             
             if conn_local:
                 conn_local.commit()
             
-            print(f"[+] Atualização em massa concluída: {atualizadas} famílias atualizadas, {erros} erros.")
             return atualizadas
             
         return 0.0
@@ -411,11 +351,9 @@ def atualizar_vulnerabilidade_bairro(uuid_bairro=None):
         # MODO INDIVIDUAL: Atualiza apenas um bairro específico
         if uuid_bairro:
             lista_bairro = [(uuid_bairro,)]
-            print(f"[*] Atualizando vulnerabilidade do bairro {uuid_bairro}...")
         
         # MODO MASSA: Atualiza TODOS os bairros
         else:
-            print("[*] Atualizando vulnerabilidade de TODOS os bairros...")
             cursor.execute('SELECT uuid_bairro FROM Bairros')
             lista_bairro = cursor.fetchall()
         
@@ -446,11 +384,6 @@ def atualizar_vulnerabilidade_bairro(uuid_bairro=None):
             atualizados += 1
         
         conn.commit()
-        
-        if uuid_bairro:
-            print(f"[+] Bairro atualizado com vulnerabilidade: {media}")
-        else:
-            print(f"[+] {atualizados} bairros atualizados com sucesso!")
         
         return atualizados
         
@@ -633,4 +566,136 @@ def salvar_censo(dados_familia, lista_membro):
         return False
     finally:
         if conn: conn.close()
+
+def carregar_dados_bairros():
+    conn = conexao_bd()
+    
+    query = """
+    WITH familias_com_pessoas AS (
+        SELECT 
+            f.uuid_bairro,
+            f.uuid_familia,
+            f.renda_familiar,
+            COUNT(p.uuid_pessoa) as qtd_pessoas
+        FROM Familias f
+        LEFT JOIN Pessoas p ON f.uuid_familia = p.uuid_familia
+        GROUP BY f.uuid_familia
+    )
+    SELECT 
+        b.nome_bairro,
+        b.nivel_vulnerabilidade as vulnerabilidade_atual,
+        COUNT(DISTINCT f.uuid_familia) as total_familias,
+        SUM(fcp.qtd_pessoas) as total_pessoas,
+        COALESCE(SUM(CASE WHEN p.gestante = 1 THEN 1 ELSE 0 END), 0) as total_gestantes,
+        COALESCE(SUM(CASE WHEN p.pcd = 1 THEN 1 ELSE 0 END), 0) as total_pcd,
+        AVG(f.renda_familiar) as renda_media_familiar,
+        AVG(f.renda_familiar / NULLIF(fcp.qtd_pessoas, 0)) as renda_per_capita_media
+    FROM Bairros b
+    LEFT JOIN Familias f ON b.uuid_bairro = f.uuid_bairro
+    LEFT JOIN familias_com_pessoas fcp ON f.uuid_familia = fcp.uuid_familia
+    LEFT JOIN Pessoas p ON f.uuid_familia = p.uuid_familia
+    GROUP BY b.uuid_bairro, b.nome_bairro
+    ORDER BY b.nivel_vulnerabilidade DESC
+    """
+    
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df.fillna(0)
+
+def carregar_evolucao_mensal():
+    """Carrega dados de evolução mensal por bairro"""
+    conn = conexao_bd()
+    
+    query = """
+    SELECT 
+        b.nome_bairro,
+        strftime('%Y-%m', v.data_visita) as mes,
+        COUNT(DISTINCT v.uuid_visita) as total_visitas,
+        AVG(v.nivel_vulnerabilidade) as vulnerabilidade_media,
+        AVG(v.renda_no_momento) as renda_media,
+        SUM(v.auxilio) as total_auxilio
+    FROM Visitas v
+    JOIN Familias f ON v.uuid_familia = f.uuid_familia
+    JOIN Bairros b ON f.uuid_bairro = b.uuid_bairro
+    WHERE v.data_visita IS NOT NULL
+    GROUP BY b.nome_bairro, strftime('%Y-%m', v.data_visita)
+    ORDER BY mes DESC, b.nome_bairro
+    """
+    
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df
+
+def carregar_metricas_gerais():
+    """Carrega métricas gerais do sistema"""
+    conn = conexao_bd()
+    
+    query = """
+    SELECT 
+        COUNT(DISTINCT f.uuid_familia) as total_familias,
+        COUNT(DISTINCT p.uuid_pessoa) as total_pessoas,
+        AVG(f.nivel_vulnerabilidade) as vulnerabilidade_media_geral,
+        COUNT(DISTINCT v.uuid_visita) as total_visitas,
+        COUNT(DISTINCT CASE WHEN v.data_visita >= date('now', '-30 days') THEN v.uuid_visita END) as visitas_30d
+    FROM Familias f
+    LEFT JOIN Pessoas p ON f.uuid_familia = p.uuid_familia
+    LEFT JOIN Visitas v ON f.uuid_familia = v.uuid_familia
+    """
+    
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df.iloc[0] if not df.empty else pd.Series()
+
+def carregar_membros_familia(uuid_familia):
+    conn = conexao_bd()
+    query = """
+    SELECT nome, sexo, gestante, pcd, renda, data_nasc, telefone, cpf
+    FROM Pessoas WHERE uuid_familia = ?
+    ORDER BY CASE WHEN cpf = (SELECT cpf_responsavel FROM Familias WHERE uuid_familia = ?) THEN 0 ELSE 1 END, data_nasc
+    """
+    df = pd.read_sql_query(query, conn, params=(uuid_familia, uuid_familia))
+    conn.close()
+    if not df.empty:
+        df['idade'] = df['data_nasc'].apply(calcular_idade)
+        df['faixa_etaria'] = df['idade'].apply(
+            lambda x: 'Criança (0-12)' if x < 13 else ('Adolescente (13-17)' if x < 18 else ('Adulto (18-59)' if x < 60 else 'Idoso (60+)'))
+        )
+    return df
+
+def carregar_todas_familias():
+    conn = conexao_bd()
+    query = """
+    SELECT 
+        f.uuid_familia, b.nome_bairro, f.tipo_moradia, f.custo_moradia,
+        f.renda_familiar, f.auxilio, f.nivel_vulnerabilidade, f.ultima_visita,
+        COUNT(p.uuid_pessoa) as qtd_membros,
+        SUM(CASE WHEN p.gestante = 1 THEN 1 ELSE 0 END) as qtd_gestantes,
+        SUM(CASE WHEN p.pcd = 1 THEN 1 ELSE 0 END) as qtd_pcd,
+        (SELECT nome FROM Pessoas WHERE cpf = f.cpf_responsavel) as nome_responsavel,
+        f.cpf_responsavel
+    FROM Familias f
+    JOIN Bairros b ON f.uuid_bairro = b.uuid_bairro
+    LEFT JOIN Pessoas p ON f.uuid_familia = p.uuid_familia
+    GROUP BY f.uuid_familia
+    ORDER BY f.nivel_vulnerabilidade DESC
+    """
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df
+
+def carregar_estatisticas_gerais():
+    conn = conexao_bd()
+    query = """
+    SELECT 
+        COUNT(DISTINCT f.uuid_familia) as total_familias,
+        COUNT(p.uuid_pessoa) as total_pessoas,
+        AVG(f.nivel_vulnerabilidade) as vulnerabilidade_media,
+        AVG(f.renda_familiar) as renda_media,
+        COUNT(DISTINCT CASE WHEN f.auxilio = 1 THEN f.uuid_familia END) as familias_com_auxilio
+    FROM Familias f
+    LEFT JOIN Pessoas p ON f.uuid_familia = p.uuid_familia
+    """
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df.iloc[0] if not df.empty else pd.Series()
 
