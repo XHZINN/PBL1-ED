@@ -7,7 +7,7 @@ def validar_cpf(indice, is_visita=False):
     # Abstração de chaves e listas
     if is_visita:
         k_cpf_key = f'cpf_novo_{indice}'
-        lista_key = 'membros_edicao'
+        lista_key = 'membro'
     else:
         f_id = st.session_state.get('form_id', '')
         k_cpf_key = f'cpf_{indice}_{f_id}'
@@ -46,20 +46,16 @@ def validar_cpf(indice, is_visita=False):
 
 def validar_nome(indice, is_visita=False):
     if is_visita:
-        # Na página de visitas
         key_widget = f"nome_novo_{indice}"
-        lista_key = "membros_edicao"
+        lista_key = "membro"
     else:
-        # Na página de cadastro 
+        
         f_id = st.session_state.get('form_id', '')
         key_widget = f"nome_{indice}_{f_id}"
-        lista_key = "membros"
+        lista_key = "membro"
 
-    # 2. BUSCA DO VALOR USANDO A CHAVE DINÂMICA
-    # Usamos o .get() para evitar o erro de atributo se a chave ainda não existir
     k_nome = st.session_state.get(key_widget, "")
 
-    # Criamos uma referência curta para facilitar a escrita
     membro_atual = st.session_state[lista_key][indice]
 
     if not k_nome:
@@ -80,7 +76,7 @@ def validar_nome(indice, is_visita=False):
 def validar_data(indice, is_visita=False):
     if is_visita:
         k_data_key = f'data_nasc_{indice}'
-        lista_key = 'membros_edicao'
+        lista_key = 'membro'
     else:
         f_id = st.session_state.get('form_id', '')
         k_data_key = f'data_nasc_{indice}_{f_id}'
@@ -103,8 +99,8 @@ def validar_data(indice, is_visita=False):
 
 def validar_tel(indice, is_visita=False):
     if is_visita:
-        k_tel_key = f'telefone_novo_{indice}' # Ou ajuste conforme sua key na visita
-        lista_key = 'membros_edicao'
+        k_tel_key = f'telefone_novo_{indice}' 
+        lista_key = 'membro'
     else:
         f_id = st.session_state.get('form_id', '')
         k_tel_key = f'telefone_{indice}_{f_id}'

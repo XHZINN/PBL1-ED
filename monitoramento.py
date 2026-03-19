@@ -5,9 +5,12 @@ import folium # pra criar o mapa
 from folium.plugins import HeatMap
 from streamlit_folium import st_folium
 import plotly.express as px # biblio para os gráficos
-from modulos.database import pegar_totais, bairros_query
+from modulos.database import pegar_totais, bairros_query, criar_table, sincronizar_vulnerabilidades_completo
 from modulos.relatorio import executar_geracao_relatorio
 import os
+
+criar_table()
+sincronizar_vulnerabilidades_completo()
 
 # config da página (o titulozinho la em cima e o tamanho do layout)
 st.set_page_config(page_title="Monitoramento SLZ", layout="wide")
