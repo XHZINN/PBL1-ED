@@ -381,4 +381,4 @@ else:
     st.warning("⚠️ Nenhum bairro encontrado com os filtros selecionados.")
 
 st.markdown("---")
-st.caption(f"📊 Dados atualizados em: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+st.caption(f"📊 Dados atualizados em: {datetime.now().strftime('%d/%m/%Y')}")

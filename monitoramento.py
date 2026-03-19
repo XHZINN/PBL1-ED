@@ -231,5 +231,5 @@ else: # se a DF estiver vazia, mostra isso
 
 
 st.write("---")
-st.caption(f"📊 Dados atualizados em: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+st.caption(f"📊 Dados atualizados em: {datetime.now().strftime('%d/%m/%Y')}")
 st.caption("Fonte: Defesa Cívil (Simulação para fins acadêmicos)")
