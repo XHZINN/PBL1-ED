@@ -3,6 +3,7 @@ import streamlit as st # interface do site
 import pandas as pd # organizar os dados em tabelas(DataFrames)
 import folium # pra criar o mapa
 from folium.plugins import HeatMap
+from datetime import datetime
 from streamlit_folium import st_folium
 import plotly.express as px # biblio para os gráficos
 from modulos.database import pegar_totais, bairros_query, criar_table
@@ -230,5 +231,5 @@ else: # se a DF estiver vazia, mostra isso
 
 
 st.write("---")
-st.caption("Última atualização dos dados: 15 de Março de 2026")
+st.caption(f"📊 Dados atualizados em: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
 st.caption("Fonte: Defesa Cívil (Simulação para fins acadêmicos)")
