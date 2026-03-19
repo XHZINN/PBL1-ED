@@ -5,13 +5,6 @@ import folium
 from folium.plugins import HeatMap
 from datetime import datetime
 from streamlit_folium import st_folium
-<<<<<<< Updated upstream
-import plotly.express as px 
-from modulos.database import pegar_totais, bairros_query
-from modulos.relatorio import executar_geracao_relatorio
-import os
-
-=======
 import plotly.express as px # biblio para os gráficos
 from modulos.relatorio import gerar_relatorio
 from modulos.database import pegar_totais, bairros_query, criar_table
@@ -20,7 +13,6 @@ import os
 criar_table()
 
 # config da página (o titulozinho la em cima e o tamanho do layout)
->>>>>>> Stashed changes
 st.set_page_config(page_title="Monitoramento SLZ", layout="wide")
 
 dados_bairros = bairros_query()
