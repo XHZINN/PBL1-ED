@@ -1,15 +1,12 @@
 import streamlit as st
 from datetime import date, timedelta
 from modulos.validacao import  validar_cpf, validar_data, validar_nome, validar_tel
-from modulos.database import criar_table, salvar_Familia, nome_bairros, novo_bairro, backup
+from modulos.database import salvar_Familia, nome_bairros, novo_bairro
 
 st.set_page_config(page_title="Monitoramento SLZ", layout="wide")
 
 st.title("Cadastro de Familia - São Luís")
 st.write("")
-
-criar_table()
-backup()
 
 def remover_membro(indice):
     st.session_state.membro.pop(indice) 

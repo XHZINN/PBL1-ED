@@ -8,7 +8,7 @@ def calcular_idade(data_nasc):
     if isinstance(data_nasc, str):
         try:
             data_nasc = datetime.strptime(data_nasc, '%Y-%m-%d').date()
-        except:
+        except:  # noqa: E722
             return 30 # Idade padrão caso a string esteja errada
 
     hoje = date.today()
@@ -20,59 +20,57 @@ def calcular_idade(data_nasc):
 # -----------------------------
 def calcular_indice_vulnerabilidade_familia(familia):
 
-    if not familia or not familia['membros']:
-        return  0.0, None
+    if not familia or not familia.get('membro'):
+        return 0.0
 
-    membros = familia['membros']
-
-    uuid_bairro = familia['uuid_bairro']
+    membros = familia['membro']
     
-    # gera a renda per capita da familia
-    qtd_pessoas = familia['pessoas_familia'] if familia['pessoas_familia'] > 0 else 1
-    renda_per_capita = familia['renda_familiar'] / qtd_pessoas if qtd_pessoas else 1
+    # Renda per capita
+    renda_f = familia.get('renda_familiar', 0)
+    qtd_pessoas = len(membros) if membros else 1
+    renda_per_capita = renda_f / qtd_pessoas
 
-    # --- PESO RENDA SÃO LUÍS ---
-    if renda_per_capita <= 218: 
-        peso_renda = 4      # Extrema Pobreza
-    elif renda_per_capita <= 625:
-        peso_renda = 3      # Pobreza (Custo Cesta Básica SLZ)
-    elif renda_per_capita <= 811: 
-        peso_renda = 2      # Baixa Renda (1/2 Salário Mínimo)
-    elif renda_per_capita <= 1621:
-        peso_renda = 1.5    # Risco Moderado (1 Salário Mínimo)
-    else:
-        peso_renda = 1      # Vulnerabilidade Baixa
+    # --- PESO RENDA (0-4 pontos) ---
+    if renda_per_capita <= 218:  # Extrema pobreza
+        peso_renda = 4
+    elif renda_per_capita <= 625:  # Pobreza
+        peso_renda = 3
+    elif renda_per_capita <= 1212:  # Baixa renda (2 salários mínimos)
+        peso_renda = 2
+    elif renda_per_capita <= 3030:  # Média renda (5 salários mínimos)
+        peso_renda = 1
+    else:  # Alta renda
+        peso_renda = 0
 
-    soma_pesos_membros = 0
-
+    # --- PESO POR MEMBRO (0-7 pontos por membro) ---
+    soma_pesos = 0
     for membro in membros:
+        peso = 0
         idade = calcular_idade(membro["data_nasc"])
-        peso_individual = 0
+        
+        # Peso por idade (0-3 pontos)
+        if idade < 5 or idade >= 60:  # Crianças e idosos
+            peso += 3
+        elif idade <= 17:  # Adolescentes
+            peso += 2
+        else:  # Adultos
+            peso += 1
+        
+        
+        if int(membro.get("gestante", 0)):
+            peso += 2
+        if int(membro.get("pcd", 0)):
+            peso += 2
+            
+        soma_pesos += peso
 
-        # Peso Idade
-        if idade < 5:
-            peso_individual += 3
-        elif idade <= 17:
-            peso_individual += 2
-        elif idade >= 60:
-            peso_individual += 3
-        else:
-            peso_individual += 1
+    
+    media_pesos = soma_pesos / len(membros) if membros else 0
 
-        # Gestante
-        if membro["gestante"]:
-            peso_individual += 2
+ 
+    indice_bruto = (peso_renda * 1.5) + (media_pesos * 1.2)
+    
+   
+    indice_final = min(10, round(indice_bruto * 0.7, 2))
 
-        # PCD
-        if membro["pcd"]:
-            peso_individual += 2
-
-        soma_pesos_membros += peso_individual
-
-    media_membros = soma_pesos_membros / len(membros)
-    indice_bruto = peso_renda + media_membros
-
-    # --- NORMALIZAÇÃO (0–10) ---
-    indice_final = round(min(10, (indice_bruto / 11) * 10), 2)
-
-    return indice_final, uuid_bairro
+    return indice_final

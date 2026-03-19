@@ -2,14 +2,15 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
-from modulos.database import carregar_metricas_gerais, carregar_dados_bairros, carregar_evolucao_mensal
+from modulos.database import carregar_dados_bairros, carregar_evolucao_mensal, carregar_metricas_gerais
 
 st.set_page_config(page_title="Análise por Bairros", layout="wide")
 st.title("📊 Análise de Vulnerabilidade por Bairro - São Luís")
 st.markdown("---")
 
 
-# --- LAYOUT PRINCIPAL ---
+
+# --- LAYOUT PRINCIPAL COM FILTROS INTEGRADOS ---
 
 
 # Carregar dados
@@ -22,10 +23,10 @@ with st.spinner("Carregando dados dos bairros..."):
 with st.sidebar:
     st.header("🔍 Filtros de Análise")
     
-    # Filtro Geográfico
+    
     st.subheader("📍 Localização")
     
-    # Ordenar bairros por vulnerabilidade
+    # Ordenar bairros por vulnerabilidade 
     bairros_ordenados = df_bairros.sort_values('vulnerabilidade_atual', ascending=False)['nome_bairro'].tolist()
     
     tipo_selecao = st.radio(
@@ -49,7 +50,7 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Filtro Temporal
+   
     st.subheader("📅 Período de Análise")
     
     if not df_evolucao.empty:
@@ -79,7 +80,7 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Filtro de Indicadores
+    
     st.subheader("📊 Indicadores")
     
     faixa_vulnerabilidade = st.slider(
@@ -107,7 +108,7 @@ if not incluir_sem_familias:
     df_bairros_filtrado = df_bairros_filtrado[df_bairros_filtrado['total_familias'] > 0]
 
 
-# --- METRICAS PRINCIPAIUS ---
+# --- MÉTRICAS PRINCIPAIS ---
 
 st.subheader("📌 Visão Geral do Município")
 
@@ -182,7 +183,7 @@ if not df_bairros_filtrado.empty:
         )
     
     # Gráficos organizados em abas
-    tab1, tab2, tab3= st.tabs([
+    tab1, tab2, tab3 = st.tabs([
         "🏆 Ranking de Vulnerabilidade", 
         "📈 Evolução Temporal", 
         "👥 Perfil Demográfico"
@@ -288,7 +289,7 @@ if not df_bairros_filtrado.empty:
                     st.plotly_chart(fig, use_container_width=True)
                 
                 # Heatmap de vulnerabilidade por bairro/mês
-                st.subheader("🗓️ HeatMap de Vulnerabilidade por Período")
+                st.subheader("🗓️ Mapa de Calor - Vulnerabilidade por Período")
                 
                 pivot_df = df_evol_temp.pivot_table(
                     values='vulnerabilidade_media',
@@ -376,7 +377,6 @@ if not df_bairros_filtrado.empty:
                 fig.update_layout(height=400)
                 st.plotly_chart(fig, use_container_width=True)
     
-
 else:
     st.warning("⚠️ Nenhum bairro encontrado com os filtros selecionados.")
 

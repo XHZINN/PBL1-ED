@@ -6,7 +6,6 @@ import altair as alt
 from modulos.database import todos_responsaveis_familia
 
 def remover_acentos(texto):
-    """Normaliza e limpa acentos para ordenação correta."""
     if not texto: return ""
     processado = unicodedata.normalize('NFD', texto)
     return "".join(c for c in processado if unicodedata.category(c) != 'Mn').lower()
