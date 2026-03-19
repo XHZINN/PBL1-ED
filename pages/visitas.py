@@ -2,6 +2,7 @@ import streamlit as st
 from modulos.database import achar_responsavel, achar_familia, novo_bairro
 from modulos.validacao import validar_tel
 
+st.set_page_config(page_title="Acompanhamento e Visitas Técnicas", layout="wide")
 st.title("📍 Acompanhamento e Visitas Técnicas")
 
 with st.container(border= True):
@@ -19,13 +20,32 @@ with st.container(border= True):
             escolha = st.selectbox("Selecione a familia encontrada:", options=resultado, format_func=formatar_label)
 
             if escolha:
+<<<<<<< Updated upstream
                 id_familia = escolha['uuid_familia']
                 st.success(f"Familia de {escolha['nome']} selecionada")
                 st.session_state.familia_focada = escolha
+=======
+                id_f = escolha['uuid_familia']
+                
+                # Coloca id_familia_atual, membro e familia_focada na memoria do streamlit bem bonitinho
+                if 'id_familia_atual' not in st.session_state or st.session_state.id_familia_atual != id_f:
+>>>>>>> Stashed changes
 
                 membros = achar_familia(escolha['uuid_familia'])
 
+<<<<<<< Updated upstream
                 for i, m in enumerate(membros):
+=======
+                
+                for i, m in enumerate(st.session_state.membro):
+                    
+                    # Se tiver marca que diz que veio do DB gera um campo pra pessoa do DB
+                    if not m.get('is_novo_cadastro', False):
+                        with st.container(border=True):
+                            st.subheader(f'👤 {m["nome"]}')
+                            if m['sexo'] != "Masculino":
+                                c_renda, c_pcd, c_ges, c_telefone = st.columns([0.25, 0.25, 0.25, 0.25])
+>>>>>>> Stashed changes
 
                     with st.container(border= True):
 
@@ -37,8 +57,18 @@ with st.container(border= True):
                             c1, c_pcd, c2 = st.columns(3)
                             c_ges = None
 
+<<<<<<< Updated upstream
                         with c1:
                             m['renda'] = st.number_input("Renda individual", value=m['renda'], key=f"renda_{i}")
+=======
+                            with c_telefone:
+                                m['telefone'] = st.text_input("Telefone", value=m['telefone'], key=f"t_ext_{i}")
+                    
+                    
+                    else:
+                        # Se não gera uma nova pessoa
+                        form(i, m)
+>>>>>>> Stashed changes
 
                         if c_ges is not None:
                             with c_ges:
@@ -128,6 +158,27 @@ with st.container(border= True):
                                 escolha['tipo_moradia'] = novo_tipo_moradia
 
                     obs = st.text_area('Observação',placeholder="Observação sobre a familia. Ex: familia aparenta viver em condições insalubres...", key='observacao')
+<<<<<<< Updated upstream
+=======
+                    familia['observacao'] = obs
+
+                    st.divider()
+
+                    if st.button("💾 Salvar Visita Técnica", type="primary", use_container_width=True):
+                        if bairro_s == "Sim":
+                            if st.session_state.familia_focada.get('bairro') == "":
+                                st.error("O bairro precisa ser valido antes de salvar")
+                        else:
+                            with st.spinner("Salvando dados no sistema..."):
+
+                                sucesso = salvar_censo(st.session_state.familia_focada, st.session_state.membro)
+
+                                if sucesso:
+                                    st.success("✅ Visita e alterações salvas com sucesso!")
+                                    # O uso dos ballons é meramento um alivio mental após esse trabalho todo :)
+                                    st.balloons()
+
+>>>>>>> Stashed changes
 
         else:
             st.warning("Nenhuma familia encontrada com esses dados.")

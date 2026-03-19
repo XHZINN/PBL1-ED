@@ -3,12 +3,24 @@ import streamlit as st
 import pandas as pd 
 import folium 
 from folium.plugins import HeatMap
+from datetime import datetime
 from streamlit_folium import st_folium
+<<<<<<< Updated upstream
 import plotly.express as px 
 from modulos.database import pegar_totais, bairros_query
 from modulos.relatorio import executar_geracao_relatorio
 import os
 
+=======
+import plotly.express as px # biblio para os gráficos
+from modulos.relatorio import gerar_relatorio
+from modulos.database import pegar_totais, bairros_query, criar_table
+import os
+
+criar_table()
+
+# config da página (o titulozinho la em cima e o tamanho do layout)
+>>>>>>> Stashed changes
 st.set_page_config(page_title="Monitoramento SLZ", layout="wide")
 
 dados_bairros = bairros_query()
@@ -23,14 +35,14 @@ df = df[df['intensidade'] >= nivel_minimo]
 st.sidebar.divider()
 st.sidebar.header("Relatório")
 
-nome_pdf = "Relatorio_Socioeconomico_Slz.pdf"
+nome_pdf = f'Relatorio_Sao_Luis_{datetime.now().strftime("%Y%m%d_%H%M")}.pdf'
 
 imagens_temporarias = ['panorama_geral.png', 'top_criticos.png']
 
 
 if st.sidebar.button("📄 Gerar Relatório PDF"):
     with st.sidebar.status("Processando...", expanded=False):
-        executar_geracao_relatorio()
+        gerar_relatorio()
         st.sidebar.success("Relatório pronto!")
 if os.path.exists(nome_pdf):
     with open(nome_pdf, "rb") as f:
@@ -182,5 +194,5 @@ else:
     st.warning("Nenhum bairro encontrado com essa intensidade. Tente diminuir o filtro na barra lateral.")
 
 st.write("---")
-st.caption("Última atualização dos dados: 15 de Março de 2026")
+st.caption(f"📊 Dados atualizados em: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
 st.caption("Fonte: Defesa Cívil (Simulação para fins acadêmicos)")
