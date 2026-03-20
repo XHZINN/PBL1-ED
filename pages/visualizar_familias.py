@@ -1,7 +1,7 @@
 import streamlit as st
 import plotly.express as px
 from datetime import datetime
-from modulos.database import carregar_todas_familias, carregar_membros_familia, carregar_estatisticas_gerais
+from modulos.database import carregar_todas_familias, carregar_membros_familia, pegar_metricas_sistema
 
 st.set_page_config(page_title="Visualizar Famílias", layout="wide")
 st.title("👨‍👩‍👧‍👦 Visualização de Famílias Cadastradas")
@@ -24,7 +24,7 @@ def colorir_vulnerabilidade(val):
 
 # --- CARREGAMENTO INICIAL ---
 df_familias = carregar_todas_familias()
-stats_gerais = carregar_estatisticas_gerais()
+stats_gerais = pegar_metricas_sistema('estatisticas')
 
 if df_familias.empty:
     st.warning("Nenhuma família cadastrada.")
