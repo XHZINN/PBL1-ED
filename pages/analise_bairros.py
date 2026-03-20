@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
-from modulos.database import carregar_dados_bairros, carregar_evolucao_mensal, carregar_metricas_gerais
+from modulos.database import carregar_dados_bairros, carregar_evolucao_mensal, pegar_metricas_sistema
 
 st.set_page_config(page_title="Análise por Bairros", layout="wide")
 st.title("📊 Análise de Vulnerabilidade por Bairro - São Luís")
@@ -17,7 +17,7 @@ st.markdown("---")
 with st.spinner("Carregando dados dos bairros..."):
     df_bairros = carregar_dados_bairros()
     df_evolucao = carregar_evolucao_mensal()
-    metricas_gerais = carregar_metricas_gerais()
+    metricas_gerais = pegar_metricas_sistema()
 
 # FILTROS - Barra lateral organizada por categoria
 with st.sidebar:

@@ -6,7 +6,7 @@ from folium.plugins import HeatMap
 from datetime import datetime
 from streamlit_folium import st_folium
 import plotly.express as px # biblio para os gráficos
-from modulos.database import pegar_totais, bairros_query, criar_table
+from modulos.database import  criar_table, listar_bairros, pegar_metricas_sistema
 from modulos.relatorio import executar_geracao_relatorio
 import os
 
@@ -15,7 +15,7 @@ criar_table()
 # config da página (o titulozinho la em cima e o tamanho do layout)
 st.set_page_config(page_title="Monitoramento SLZ", layout="wide")
 
-dados_bairros = bairros_query()
+dados_bairros = listar_bairros(coordenadas=True)
     
 # transforma a lista de dicionários em uma tabela do Pandas (DataFrame)
 df = pd.DataFrame(dados_bairros)
@@ -180,15 +180,15 @@ if not df.empty:
             hide_index=True # esconde a coluna de index
         )
 
-    totais = pegar_totais()
+    totais = pegar_metricas_sistema('basico')
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.metric(label="Total de Familias", value=int(totais[0]))
+        st.metric(label="Total de Familias", value=int(totais['total_familias']))
 
     with col2:
-        st.metric(label="Total de Pessoas Residentes", value=int(totais[1]))
+        st.metric(label="Total de Pessoas Residentes", value=int(totais['total_pessoas']))
 
     st.divider()
 

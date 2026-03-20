@@ -1,7 +1,7 @@
 import streamlit as st
 from datetime import date, timedelta
 from modulos.validacao import  validar_cpf, validar_data, validar_nome, validar_tel
-from modulos.database import salvar_Familia, nome_bairros, novo_bairro
+from modulos.database import salvar_Familia, novo_bairro, listar_bairros
 
 st.set_page_config(page_title="Monitoramento SLZ", layout="wide")
 
@@ -173,7 +173,7 @@ if 'banco_familias' not in st.session_state:
 if 'form_id' not in st.session_state:
     st.session_state.form_id = 0
 
-bairros = nome_bairros()
+bairros = listar_bairros()
 if 'Outro' not in bairros:
     bairros.append('Outro')
 

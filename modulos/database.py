@@ -112,39 +112,28 @@ def novo_bairro(nome_b):
     
     return ""
 
-def nome_bairros():
-     
-     conn = conexao_bd()
-     cursor = conn.cursor()
+def listar_bairros(coordenadas=False):
+    """
+    Retorna dados dos bairros.
+    com_coordenadas=False: retorna lista de nomes
+    com_coordenadas=True: retorna lista de dicts com nome, lat, lon, intensidade
+    """
+    conn = conexao_bd()
+    cursor = conn.cursor()
+    
+    if coordenadas:
+        cursor.execute('SELECT nome_bairro, latitude, longitude, nivel_vulnerabilidade FROM Bairros ORDER BY nome_bairro ASC')
+        resultado = [
+            {'bairro': row[0], 'lat': row[1], 'lon': row[2], 'intensidade': row[3]}
+            for row in cursor.fetchall()
+        ]
+    else:
+        cursor.execute('SELECT nome_bairro FROM Bairros ORDER BY nome_bairro ASC')
+        resultado = [row[0] for row in cursor.fetchall()]
+    
+    conn.close()
+    return resultado
 
-     cursor.execute('SELECT nome_bairro FROM Bairros ORDER BY nome_bairro ASC')
-
-     bairros = [linha[0] for linha in cursor.fetchall()]
-
-     conn.close
-     return bairros
-
-def bairros_query():
-     
-     conn = conexao_bd()
-     cursor = conn.cursor()
-
-     cursor.execute('SELECT nome_bairro, latitude, longitude, nivel_vulnerabilidade FROM Bairros ORDER BY nome_bairro ASC')
-     dados = cursor.fetchall()
-
-     bairros = [{
-          
-          'bairro': linha[0],
-          'lat': linha[1],
-          'lon': linha[2],
-          'intensidade': linha[3]
-         }
-        for linha in dados
-     ]
-
-     conn.close()
-     return bairros
-  
 def criar_table():
         conn = conexao_bd()
         trabaiador = conn.cursor()
@@ -404,21 +393,6 @@ def sincronizar_vulnerabilidades_completo():
     
     return familias_atualizadas, bairros_atualizados
 
-def pegar_totais():
-
-    conn = conexao_bd()
-    cursor = conn.cursor()
-    
-    cursor.execute('SELECT COUNT(*) FROM Familias')
-    total_familias = cursor.fetchone()[0]
-    
-    cursor.execute('SELECT COUNT(*) FROM Pessoas')
-    resultado_pessoas = cursor.fetchone()[0]
-    total_pessoas = resultado_pessoas if resultado_pessoas else 0
-    
-    conn.close()
-    return total_familias, total_pessoas
-
 def achar_responsavel(busca):
     conn = conexao_bd()
     conn.row_factory = sqlite3.Row
@@ -640,26 +614,6 @@ def carregar_evolucao_mensal():
     conn.close()
     return df
 
-def carregar_metricas_gerais():
-    """Carrega métricas gerais do sistema"""
-    conn = conexao_bd()
-    
-    query = """
-    SELECT 
-        COUNT(DISTINCT f.uuid_familia) as total_familias,
-        COUNT(DISTINCT p.uuid_pessoa) as total_pessoas,
-        AVG(f.nivel_vulnerabilidade) as vulnerabilidade_media_geral,
-        COUNT(DISTINCT v.uuid_visita) as total_visitas,
-        COUNT(DISTINCT CASE WHEN v.data_visita >= date('now', '-30 days') THEN v.uuid_visita END) as visitas_30d
-    FROM Familias f
-    LEFT JOIN Pessoas p ON f.uuid_familia = p.uuid_familia
-    LEFT JOIN Visitas v ON f.uuid_familia = v.uuid_familia
-    """
-    
-    df = pd.read_sql_query(query, conn)
-    conn.close()
-    return df.iloc[0] if not df.empty else pd.Series()
-
 def carregar_membros_familia(uuid_familia):
     conn = conexao_bd()
     query = """
@@ -697,19 +651,53 @@ def carregar_todas_familias():
     conn.close()
     return df
 
-def carregar_estatisticas_gerais():
-    conn = conexao_bd()
-    query = """
-    SELECT 
-        COUNT(DISTINCT f.uuid_familia) as total_familias,
-        COUNT(p.uuid_pessoa) as total_pessoas,
-        AVG(f.nivel_vulnerabilidade) as vulnerabilidade_media,
-        AVG(f.renda_familiar) as renda_media,
-        COUNT(DISTINCT CASE WHEN f.auxilio = 1 THEN f.uuid_familia END) as familias_com_auxilio
-    FROM Familias f
-    LEFT JOIN Pessoas p ON f.uuid_familia = p.uuid_familia
+# Substituir carregar_metricas_gerais(), carregar_estatisticas_gerais() e pegar_totais() por:
+
+def pegar_metricas_sistema(tipo='completo'):
     """
+    Retorna métricas do sistema.
+    tipo: 'basico' (só famílias/pessoas), 'estatisticas' (sem visitas), 'completo' (tudo)
+    """
+    conn = conexao_bd()
+    
+    if tipo == 'basico':
+        query = "SELECT COUNT(*) as total_familias FROM Familias"
+        df = pd.read_sql_query(query, conn)
+        total_familias = df.iloc[0]['total_familias']
+        
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM Pessoas")
+        total_pessoas = cursor.fetchone()[0]
+        conn.close()
+        
+        return {'total_familias': total_familias, 'total_pessoas': total_pessoas}
+    
+    elif tipo == 'estatisticas':
+        query = """
+        SELECT 
+            COUNT(DISTINCT f.uuid_familia) as total_familias,
+            COUNT(p.uuid_pessoa) as total_pessoas,
+            AVG(f.nivel_vulnerabilidade) as vulnerabilidade_media,
+            AVG(f.renda_familiar) as renda_media,
+            COUNT(DISTINCT CASE WHEN f.auxilio = 1 THEN f.uuid_familia END) as familias_com_auxilio
+        FROM Familias f
+        LEFT JOIN Pessoas p ON f.uuid_familia = p.uuid_familia
+        """
+    else:  # completo
+        query = """
+        SELECT 
+            COUNT(DISTINCT f.uuid_familia) as total_familias,
+            COUNT(DISTINCT p.uuid_pessoa) as total_pessoas,
+            AVG(f.nivel_vulnerabilidade) as vulnerabilidade_media_geral,
+            AVG(f.renda_familiar) as renda_media,
+            COUNT(DISTINCT v.uuid_visita) as total_visitas,
+            COUNT(DISTINCT CASE WHEN v.data_visita >= date('now', '-30 days') THEN v.uuid_visita END) as visitas_30d
+        FROM Familias f
+        LEFT JOIN Pessoas p ON f.uuid_familia = p.uuid_familia
+        LEFT JOIN Visitas v ON f.uuid_familia = v.uuid_familia
+        """
+    
     df = pd.read_sql_query(query, conn)
     conn.close()
-    return df.iloc[0] if not df.empty else pd.Series()
+    return df.iloc[0].to_dict() if not df.empty else {}
 
