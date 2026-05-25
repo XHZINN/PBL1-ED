@@ -84,7 +84,7 @@ with tab_lista:
         # Formatação de texto
         df_view['auxilio'] = df_view['auxilio'].map({1: '✅ Sim', 0: '❌ Não'})
     
-        styled_df = df_view.style.applymap(colorir_vulnerabilidade, subset=['nivel_vulnerabilidade'])
+        styled_df = df_view.style.map(colorir_vulnerabilidade, subset=['nivel_vulnerabilidade'])
         
         st.dataframe(
             styled_df,
