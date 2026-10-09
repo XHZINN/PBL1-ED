@@ -65,7 +65,9 @@ else:
 m = folium.Map(
     location=[-2.550, -44.270], 
     zoom_start=12, 
-    tiles="CartoDB dark_matter", # deixa em modo escuro
+    # CartoDB passou a exigir API key, então usamos o basemap escuro da Esri (livre e sem chave)
+    tiles="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+    attr="Esri",
     control_scale=True,
 )
 

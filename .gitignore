@@ -3,4 +3,6 @@ teste.py
 teste1.py
 teste3.py
 
-
+__pycache__/
+*.pyc
+.venv/
