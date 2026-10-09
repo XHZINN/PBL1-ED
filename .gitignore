@@ -6,3 +6,4 @@ teste3.py
 __pycache__/
 *.pyc
 .venv/
+brag-output/

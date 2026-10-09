@@ -119,7 +119,7 @@ for index, row in df.iterrows():
             <div style="
                 font-family: sans-serif; 
                 background-color: {cor_bairro}; 
-                color: {'black' if row['intensidade'] < 0.9 else 'white'}; 
+                color: {'black' if row['intensidade'] < 7.0 else 'white'}; 
                 padding: 10px; 
                 border-radius: 5px;
                 width: 150px;
