@@ -12,12 +12,8 @@ delas e agrega esse resultado por bairro, exibindo-o em um mapa de calor e em pa
 **Aplicação no ar:** https://monitoramentopbl1.streamlit.app
 
 <!-- ########## VÍDEO ##########
-     Arraste o arquivo de vídeo para dentro deste editor, aqui nesta linha.
-     O GitHub faz o upload e insere sozinho uma URL github.com/user-attachments/assets/...
-     Ela precisa ficar sozinha numa linha, sem ![]() em volta.
-     Depois clique em Preview e confira que apareceu o player antes de commitar.
-     Por fim, apague este bloco de comentário.
-     ############################ -->
+https://github.com/user-attachments/assets/2b458f8e-951e-431b-9bfd-e775b8e468da
+-->
 
 > Os dados deste repositório são simulados. O projeto foi desenvolvido como trabalho acadêmico
 > (PBL) e não utiliza informações reais de nenhuma família.
