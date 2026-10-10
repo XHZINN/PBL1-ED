@@ -12,7 +12,7 @@ delas e agrega esse resultado por bairro, exibindo-o em um mapa de calor e em pa
 **Aplicação no ar:** https://monitoramentopbl1.streamlit.app
 
 <!--### VÍDEO ###-->
-https://github.com/user-attachments/assets/dc30f4c3-2e19-4350-8155-674b07916459
+https://github.com/user-attachments/assets/5ef92086-049f-465c-9b57-9267769aafdc
 
 > Os dados deste repositório são simulados. O projeto foi desenvolvido como trabalho acadêmico
 > (PBL) e não utiliza informações reais de nenhuma família.
